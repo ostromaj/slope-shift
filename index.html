@@ -1,0 +1,973 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Slope Shift</title>
+<meta name="description" content="You are the regression line. An IB Computer Science linear regression game.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0e0c1a; --panel: #1b1831; --line: #3a3460; --text: #f1eefc; --muted: #a9a3c9;
+    --beam: #3fd8e8; --gold: #f4c84a; --bad: #ff6b6b; --good: #6be38f; --count: #b06cff;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); font-family: "Space Grotesk", system-ui, sans-serif; }
+  body { min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 10px 10px 20px; }
+  #game { position: relative; width: 100%; max-width: 1180px; }
+  canvas { display: block; width: 100%; height: auto; border-radius: 16px; border: 2px solid var(--line); background: #110f20; touch-action: none; user-select: none; -webkit-user-select: none; }
+  #bar {
+    width: 100%; max-width: 1180px; margin-top: 10px; min-height: 76px;
+    background: var(--panel); border: 2px solid var(--line); border-radius: 16px;
+    padding: 12px 16px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap;
+  }
+  #prompt { flex: 1 1 380px; font-size: 17px; line-height: 1.45; }
+  #prompt b { color: var(--gold); }
+  #prompt .eq { font-weight: 700; color: var(--beam); white-space: nowrap; }
+  #prompt .ok { color: var(--good); font-weight: 700; }
+  #prompt .no { color: var(--bad); font-weight: 700; }
+  #actions { display: flex; gap: 10px; flex-wrap: wrap; }
+  button {
+    font-family: "Press Start 2P", monospace; font-size: 12px; line-height: 1.4;
+    color: #15121f; background: var(--beam); border: 0; border-radius: 12px;
+    padding: 13px 16px; cursor: pointer;
+  }
+  button.gold { background: var(--gold); }
+  button.ghost { background: transparent; color: var(--text); border: 2px solid var(--line); }
+  button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+  #overlay {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    background: rgba(14,12,26,.82); border-radius: 16px; padding: 18px;
+  }
+  #overlay[hidden] { display: none; }
+  .card {
+    max-width: 640px; width: 100%; background: var(--panel); border: 2px solid var(--line);
+    border-radius: 18px; padding: 26px 26px 22px; text-align: center; max-height: 100%; overflow: auto;
+  }
+  .card h1 { font-family: "Press Start 2P", monospace; font-size: clamp(22px, 4vw, 38px); margin: 0 0 6px; color: var(--beam); line-height: 1.3; }
+  .card h2 { font-family: "Press Start 2P", monospace; font-size: clamp(14px, 2.4vw, 20px); margin: 0 0 12px; color: var(--gold); line-height: 1.5; }
+  .card p { color: var(--muted); margin: 8px 0; line-height: 1.5; font-size: 16px; }
+  .card p strong { color: var(--text); }
+  .card .big { font-family: "Press Start 2P", monospace; font-size: 30px; color: var(--gold); margin: 10px 0; }
+  .card .row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 16px; }
+  .keys { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; text-align: left; margin: 14px auto 4px; max-width: 460px; font-size: 15px; color: var(--muted); }
+  .keys kbd { font-family: "Space Grotesk", sans-serif; font-weight: 700; color: var(--text); background: #2a2549; border: 1px solid var(--line); border-radius: 6px; padding: 1px 7px; white-space: nowrap; }
+  .tagline { font-size: 13px !important; letter-spacing: .08em; text-transform: uppercase; color: var(--count) !important; font-weight: 700; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+  .chip { font-family: "Space Grotesk", sans-serif; font-size: 15px; font-weight: 700; background: #2a2549; color: var(--text); border: 2px solid var(--line); border-radius: 999px; padding: 8px 14px; }
+  .chip.sel { border-color: var(--gold); color: var(--gold); }
+  .chip.used { opacity: .35; }
+  .slots { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+  .slot { flex: 1 1 220px; min-height: 64px; border: 2px dashed var(--line); border-radius: 12px; padding: 8px 10px; background: #15122a; cursor: pointer; text-align: left; font-family: "Space Grotesk", sans-serif; font-size: 14px; color: var(--muted); }
+  .slot .lbl { font-weight: 700; color: var(--text); display: block; margin-bottom: 4px; }
+  .slot .in { display: inline-block; background: var(--beam); color: #15121f; border-radius: 999px; padding: 3px 10px; margin: 2px 4px 2px 0; font-weight: 700; }
+  #mute { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); font-size: 10px; padding: 8px 10px; background: rgba(42,37,73,.9); color: var(--text); }
+  @media (max-width: 600px) { #prompt { font-size: 15px; } button { font-size: 11px; padding: 12px 12px; } .card { padding: 18px 14px; } }
+  @media (max-width: 760px) {
+    #overlay { position: fixed; border-radius: 0; z-index: 10; background: rgba(14,12,26,.92); }
+    #mute { font-size: 8px; padding: 5px 7px; top: 4px; }
+  }
+  #rotate { display: none; width: 100%; max-width: 1180px; margin-top: 8px; color: var(--muted); font-size: 14px; text-align: center; }
+  @media (max-width: 760px) and (orientation: portrait) { #rotate { display: block; } }
+</style>
+</head>
+<body>
+<div id="game">
+  <canvas id="c" width="1280" height="800" aria-label="Slope Shift game"></canvas>
+  <button id="mute" class="ghost" type="button" aria-label="Toggle sound">SOUND: ON</button>
+  <div id="overlay"></div>
+</div>
+<div id="bar"><div id="prompt"></div><div id="actions"></div></div>
+<div id="rotate">Tip: turn your phone sideways for a bigger board.</div>
+
+<script>
+(() => {
+"use strict";
+// ---------- canvas ----------
+const cv = document.getElementById('c');
+const ctx = cv.getContext('2d');
+if (!CanvasRenderingContext2D.prototype.roundRect) {
+  CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
+    this.moveTo(x + r, y); this.arcTo(x + w, y, x + w, y + h, r); this.arcTo(x + w, y + h, x, y + h, r);
+    this.arcTo(x, y + h, x, y, r); this.arcTo(x, y, x + w, y, r); this.closePath();
+  };
+}
+const W = 1280, H = 800;
+const PW_FULL = W - 100 - 44;
+const P = { x: 100, y: 128, w: PW_FULL, h: H - 128 - 76 };   // plot rectangle
+function setPlot(narrow) { P.w = narrow ? Math.round(PW_FULL * 0.62) : PW_FULL; }
+const COUNT_POS = { x: W - 92, y: 80 };
+const C = { beam: '#3fd8e8', gold: '#f4c84a', bad: '#ff6b6b', good: '#6be38f', count: '#b06cff', text: '#f1eefc', muted: '#a9a3c9', line: '#3a3460', grid: 'rgba(255,255,255,0.06)' };
+const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// ---------- levels ----------
+const LEVELS = [
+  { name: 'The Study Session', story: 'Count Scatter has scrambled the class data on study time and test scores.',
+    xName: 'Hours studied', xU: 'hours', yName: 'Test score', yU: '%', yThing: 'test score', yChange: 'percentage points',
+    xStep: 'each extra hour studied', x0Phrase: 'a student studies for 0 hours',
+    xmin: 0, xmax: 10, ymin: 30, ymax: 100, dx: [0.5, 9.5], m: 4.5, b: 47, sd: 4.5, n: 16 },
+  { name: 'Cocoa Crisis', story: 'The cafe tracked hot cocoa sales against the temperature. Count Scatter wants the cocoa to stay a mystery.',
+    xName: 'Temperature', xU: '°C', yName: 'Hot cocoa sold', yU: 'cups', yThing: 'number of cups sold', yChange: 'cups',
+    xStep: 'each 1 °C rise in temperature', x0Phrase: 'the temperature is 0 °C',
+    xmin: -5, xmax: 25, ymin: 0, ymax: 240, dx: [-4, 24], m: -5.5, b: 185, sd: 11, n: 18 },
+  { name: 'Midnight Scroll', story: 'A survey compared daily screen time with hours of sleep. The Count is up past bedtime, throwing outliers.',
+    xName: 'Screen time', xU: 'hours/day', yName: 'Sleep', yU: 'hours', yThing: 'sleep', yChange: 'hours',
+    xStep: 'each extra hour of screen time', x0Phrase: 'screen time is 0 hours',
+    xmin: 0, xmax: 10, ymin: 3, ymax: 10, dx: [1, 9], m: -0.38, b: 9.3, sd: 0.45, n: 18 },
+  { name: 'Server Meltdown', story: 'The school server slows down as more users log in. Count Scatter is shoving the line around now.',
+    xName: 'Users online', xU: 'hundreds', yName: 'Response time', yU: 'ms', yThing: 'response time', yChange: 'ms',
+    xStep: 'each extra 100 users online', x0Phrase: 'there are 0 users online',
+    xmin: 0, xmax: 20, ymin: 0, ymax: 200, dx: [1, 19], m: 6.5, b: 38, sd: 11, n: 20 },
+  { name: "The Count's Lair", story: 'Final showdown. An app compared ads shown with downloads. The Count throws everything he has.',
+    xName: 'Ads shown', xU: 'thousands', yName: 'App downloads', yU: 'hundreds', yThing: 'number of downloads', yChange: 'hundred downloads',
+    xStep: 'each extra 1,000 ads shown', x0Phrase: '0 ads are shown',
+    xmin: 0, xmax: 30, ymin: 0, ymax: 100, dx: [1, 29], m: 2.1, b: 14, sd: 8, n: 22 }
+];
+const METEOR_GAP = [4.6, 3.9, 3.3, 2.8, 2.2];
+const GUST_GAP = [Infinity, 9, 7.5, 6, 4.5];
+const FEED_TIME = 36;
+const SCHEDULE = [
+  ['axes', 'slope', 'predict'],
+  ['rpick', 'tune', 'residualClick'],
+  ['r2meaning', 'predict', 'intercept'],
+  ['residualCalc', 'tune', 'static1'],
+  ['extrapolation', 'r2fromr', 'static2']
+];
+const TOTAL_Q = SCHEDULE.reduce((a, s) => a + s.length, 0);
+
+// ---------- helpers ----------
+const rand = (a, b) => a + Math.random() * (b - a);
+const pick = a => a[Math.floor(Math.random() * a.length)];
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+function gauss() { let u = 0, v = 0; while (!u) u = Math.random(); while (!v) v = Math.random(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
+function shuffle(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+function decimalsFor(v) { const a = Math.abs(v); return a >= 100 ? 0 : a >= 10 ? 1 : 2; }
+function fmt(v, d) { if (d === undefined) d = decimalsFor(v); const s = (+v.toFixed(d)); return (Object.is(s, -0) ? 0 : s).toString().replace('-', '−'); }
+function num(v, d) { if (d === undefined) d = decimalsFor(v); return +v.toFixed(d); }
+function eqStr(m, b) { const bs = b < 0 ? '− ' + fmt(Math.abs(b)) : '+ ' + fmt(b); return 'ŷ = ' + fmt(m) + 'x ' + bs; }
+function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+
+function fitOf(pts) {
+  const n = pts.length; let mx = 0, my = 0;
+  for (const p of pts) { mx += p.x; my += p.y; } mx /= n; my /= n;
+  let sxx = 0, sxy = 0, syy = 0;
+  for (const p of pts) { sxx += (p.x - mx) ** 2; sxy += (p.x - mx) * (p.y - my); syy += (p.y - my) ** 2; }
+  const m = sxy / sxx, b = my - m * mx, r = sxy / Math.sqrt(sxx * syy);
+  return { m, b, r, r2: r * r, mx, my };
+}
+function r2Of(pts, m, b) {
+  if (pts.length < 3) return 0;
+  let my = 0; for (const p of pts) my += p.y; my /= pts.length;
+  let ssr = 0, sst = 0;
+  for (const p of pts) { ssr += (p.y - (m * p.x + b)) ** 2; sst += (p.y - my) ** 2; }
+  return sst === 0 ? 0 : 1 - ssr / sst;
+}
+function genPoints(L, n) {
+  const pts = [];
+  for (let i = 0; i < n; i++) {
+    const x = L.dx[0] + (i + rand(0.1, 0.9)) / n * (L.dx[1] - L.dx[0]);
+    let y = L.m * x + L.b + gauss() * L.sd;
+    y = clamp(y, L.ymin + 0.03 * (L.ymax - L.ymin), L.ymax - 0.03 * (L.ymax - L.ymin));
+    pts.push({ x, y });
+  }
+  return pts;
+}
+function niceStep(range, target) { const raw = range / target, p = Math.pow(10, Math.floor(Math.log10(raw))), f = raw / p; return (f < 1.5 ? 1 : f < 3 ? 2 : f < 7 ? 5 : 10) * p; }
+function niceRound(v) { if (v === 0) return 0; const p = Math.pow(10, Math.floor(Math.log10(Math.abs(v)))); return Math.round(v / p * 2) / 2 * p; }
+
+// ---------- coordinate mapping ----------
+let L = LEVELS[0];
+const xr = () => L.xmax - L.xmin, yr = () => L.ymax - L.ymin;
+const sx = x => P.x + (x - L.xmin) / xr() * P.w;
+const sy = y => P.y + P.h - (y - L.ymin) / yr() * P.h;
+const wx = px => L.xmin + (px - P.x) / P.w * xr();
+const wy = py => L.ymin + (P.y + P.h - py) / P.h * yr();
+const XL = () => L.xmin + 0.08 * xr(), XR = () => L.xmax - 0.08 * xr();
+
+// ---------- sound ----------
+let audio = null, soundOn = true;
+try { soundOn = localStorage.getItem('slopeshift-sound') !== 'off'; } catch (e) {}
+function beep(f, d = 0.12, type = 'square', vol = 0.05, slide = 0) {
+  if (!soundOn) return;
+  try {
+    if (!audio) audio = new (window.AudioContext || window.webkitAudioContext)();
+    const t = audio.currentTime, o = audio.createOscillator(), g = audio.createGain();
+    o.type = type; o.frequency.setValueAtTime(f, t);
+    if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(40, f + slide), t + d);
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+    o.connect(g); g.connect(audio.destination); o.start(t); o.stop(t + d + 0.02);
+  } catch (e) {}
+}
+const sfx = {
+  pop: () => beep(660, 0.09, 'square', 0.04, 300),
+  land: () => beep(180, 0.18, 'sawtooth', 0.04, -80),
+  good: () => { beep(523, 0.1, 'triangle', 0.07); setTimeout(() => beep(784, 0.16, 'triangle', 0.07), 90); },
+  bad: () => beep(150, 0.3, 'sawtooth', 0.05, -60),
+  blast: () => beep(220, 0.45, 'sawtooth', 0.06, 700),
+  tick: () => beep(1100, 0.03, 'square', 0.02),
+  laugh: () => { [0, 110, 220].forEach((t, i) => setTimeout(() => beep(320 - i * 40, 0.09, 'square', 0.035), t)); }
+};
+const muteBtn = document.getElementById('mute');
+function updateMute() { muteBtn.textContent = 'SOUND: ' + (soundOn ? 'ON' : 'OFF'); }
+muteBtn.addEventListener('click', () => { soundOn = !soundOn; try { localStorage.setItem('slopeshift-sound', soundOn ? 'on' : 'off'); } catch (e) {} updateMute(); muteBtn.blur(); });
+updateMute();
+
+// ---------- DOM bar / overlay ----------
+const promptEl = document.getElementById('prompt'), actionsEl = document.getElementById('actions'), overlay = document.getElementById('overlay');
+function setBar(html, buttons = []) {
+  promptEl.innerHTML = html; actionsEl.innerHTML = '';
+  for (const b of buttons) {
+    const el = document.createElement('button'); el.type = 'button'; el.textContent = b.label;
+    if (b.cls) el.className = b.cls; if (b.id) el.id = b.id;
+    el.addEventListener('click', () => { el.blur(); b.fn(); });
+    actionsEl.appendChild(el);
+  }
+}
+function showOverlay(html, buttons = []) {
+  overlay.innerHTML = '<div class="card">' + html + '<div class="row"></div></div>';
+  const row = overlay.querySelector('.row');
+  for (const b of buttons) {
+    const el = document.createElement('button'); el.type = 'button'; el.textContent = b.label; if (b.cls) el.className = b.cls;
+    el.addEventListener('click', () => { el.blur(); b.fn(); }); row.appendChild(el);
+  }
+  overlay.hidden = false;
+  const first = row.querySelector('button'); if (first) setTimeout(() => first.focus({ preventScroll: true }), 30);
+}
+function hideOverlay() { overlay.hidden = true; overlay.innerHTML = ''; }
+
+// ---------- game state ----------
+const S = {
+  mode: 'title', level: 0, score: 0, hp: 100, correct: 0, asked: 0, levelCorrect: 0, levelScore: 0,
+  pts: [], fit: null, line: { yL: 0, yR: 0, vL: 0, vR: 0 }, feed: null, q: null, qi: 0, qList: [],
+  t: 0, particles: [], texts: [], beams: [], count: { wob: 0, say: '', sayT: 0, hurt: 0 }, enterFn: null
+};
+if (/[?&]test\b/.test(location.search)) window.SS = S; // test hook (add ?test to the URL)
+
+const keys = new Set();
+const lineM = () => (S.line.yR - S.line.yL) / (XR() - XL());
+const lineB = () => S.line.yL - lineM() * XL();
+const lineY = x => S.line.yL + (x - XL()) * lineM();
+
+function addText(x, y, s, color = C.gold, size = 22) { S.texts.push({ x, y, s, color, size, t: 0 }); }
+function burst(x, y, color, n = 14) {
+  if (reduceMotion) n = Math.ceil(n / 3);
+  for (let i = 0; i < n; i++) { const a = rand(0, Math.PI * 2), v = rand(80, 260); S.particles.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: rand(0.4, 0.8), t: 0, color }); }
+}
+const TAUNTS = ['Outliers are my friends!', 'Scattered! Ha!', 'r = 0, forever!', 'Fit THIS!', 'My data, my rules!', 'Noise is beautiful!'];
+const OUCH = ['Ugh! A strong correlation!', 'Too… well… fitted…', 'Not the least squares!', 'My scatter! Nooo!', 'Curse your residuals!'];
+function countSay(s, t = 2.2) { S.count.say = s; S.count.sayT = t; }
+function hitCount(dmg, fromX, fromY) {
+  S.hp = Math.max(0, S.hp - dmg); S.count.hurt = 0.6; S.count.wob = 1;
+  S.beams.push({ x1: fromX, y1: fromY, x2: COUNT_POS.x, y2: COUNT_POS.y, t: 0 });
+  burst(COUNT_POS.x, COUNT_POS.y, C.count, 18); countSay(pick(OUCH));
+}
+function healCount(n) { S.hp = Math.min(100, S.hp + n); countSay(pick(TAUNTS)); sfx.laugh(); }
+function addScore(n, x, y) { S.score += n; S.levelScore += n; if (x !== undefined) addText(x, y, '+' + n, C.gold, 20); }
+
+// ---------- flow ----------
+function titleScreen() {
+  S.mode = 'title'; L = LEVELS[0]; S.pts = genPoints(L, 16); S.fit = fitOf(S.pts);
+  S.line.yL = lineYfromFit(XL()); S.line.yR = lineYfromFit(XR());
+  let best = 0; try { best = +localStorage.getItem('slopeshift-best') || 0; } catch (e) {}
+  setBar('IB Computer Science · A4 Machine learning · Linear regression');
+  showOverlay(
+    '<p class="tagline">An IB CS regression game</p><h1>SLOPE SHIFT</h1>' +
+    '<p><strong>You are the line of best fit.</strong> Count Scatter is flinging outliers to wreck everyone’s data. Hug the trend, blast him with your R², and answer his challenges using the line itself.</p>' +
+    '<div class="keys">' +
+    '<kbd>↑ ↓ / W S</kbd><span>shift the line up and down</span>' +
+    '<kbd>← → / A D</kbd><span>tilt the line (change the slope)</span>' +
+    '<kbd>Drag</kbd><span>grab either end of the line (mouse or finger)</span>' +
+    '<kbd>Click</kbd><span>pop red outlier meteors before they land</span>' +
+    '<kbd>Space</kbd><span>fire your R² blast when it’s charged</span>' +
+    '</div>' + (best ? '<p>Your best score: <strong>' + best + '</strong></p>' : ''),
+    [{ label: 'START ▸', fn: () => { resetGame(); levelIntro(); } }]);
+  S.enterFn = () => { resetGame(); levelIntro(); };
+}
+function lineYfromFit(x) { return S.fit.m * x + S.fit.b; }
+function resetGame() { S.level = 0; S.score = 0; S.hp = 100; S.correct = 0; S.asked = 0; }
+
+function levelIntro() {
+  L = LEVELS[S.level]; S.levelCorrect = 0; S.levelScore = 0;
+  S.pts = genPoints(L, L.n); S.fit = fitOf(S.pts);
+  S.line = { yL: (L.ymin + L.ymax) / 2, yR: (L.ymin + L.ymax) / 2, vL: 0, vR: 0 };
+  S.mode = 'intro';
+  const extra = S.level === 1 ? '<p><strong>New:</strong> outliers that land will <strong>pull your line</strong> toward them. Click them to clean them up.</p>'
+    : S.level === 3 ? '<p><strong>New:</strong> Count Scatter shoves your line. Steady it!</p>'
+    : S.level === 4 ? '<p><strong>Boss level.</strong> More meteors, harder shoves. Finish him!</p>' : '';
+  setBar('<b>Level ' + (S.level + 1) + ' of 5</b> · ' + esc(L.xName) + ' vs ' + esc(L.yName));
+  showOverlay('<p class="tagline">Level ' + (S.level + 1) + ' of 5</p><h2>' + esc(L.name) + '</h2><p>' + esc(L.story) + '</p>' +
+    '<p><strong>Phase 1:</strong> ride the trend as the data lands. The closer you fit, the faster your R² blast charges.</p>' +
+    '<p><strong>Phase 2:</strong> three of Count Scatter’s challenges.</p>' + extra,
+    [{ label: 'GO ▸', fn: startFeed }]);
+  S.enterFn = startFeed;
+}
+
+function startFeed() {
+  hideOverlay(); setPlot(false); S.mode = 'feed';
+  S.feed = { t: 0, pending: shuffle(S.pts), landed: [], falling: [], meteors: [], corrupt: [],
+    nextSpawn: 0.4, nextMeteor: 3, nextGust: GUST_GAP[S.level], charge: 0, r2: 0, scoreAcc: 0 };
+  S.enterFn = null;
+  feedBar();
+}
+function feedBar() {
+  const f = S.feed, ready = f.charge >= 1;
+  setBar('<b>Ride the trend!</b> Keep the line close to the data. Pop the <span class="no">red meteors</span>. ' +
+    (ready ? '<span class="ok">R² blast ready: press Space!</span>' : 'Fit well to charge your R² blast.'),
+    ready ? [{ label: 'BLAST ▸', cls: 'gold', fn: fireBlast }] : []);
+  f.barReady = ready;
+}
+function fireBlast() {
+  const f = S.feed; if (!f || S.mode !== 'feed' || f.charge < 1) return;
+  f.charge = 0; sfx.blast();
+  const mx = (XL() + XR()) / 2; hitCount(3, sx(mx), sy(lineY(mx))); addScore(50, sx(mx), sy(lineY(mx)) - 20);
+  feedBar();
+}
+function endFeed() {
+  const f = S.feed; S.mode = 'reveal';
+  const good = f.landed; const fit = fitOf(good); S.fit = fit; S.pts = good.slice();
+  const myR2 = r2Of(good, lineM(), lineB()), bestR2 = fit.r2;
+  const dL = Math.abs(S.line.yL - (fit.m * XL() + fit.b)), dR = Math.abs(S.line.yR - (fit.m * XR() + fit.b));
+  const off = (dL + dR) / 2 / yr();
+  const bonus = Math.max(0, Math.round(300 * (1 - off / 0.15)));
+  if (bonus > 0) addScore(bonus, P.x + P.w / 2, P.y + 40);
+  S.reveal = { myR2, bestR2, bonus, t: 0 };
+  setBar('<b>Data’s in!</b> Your line: <span class="eq">' + eqStr(lineM(), lineB()) + '</span> (R² = ' + fmt(Math.max(0, myR2), 2) + '). ' +
+    'The <span style="color:#f4c84a;font-weight:700">gold dashed line</span> is the least-squares line: <span class="eq">' + eqStr(fit.m, fit.b) + '</span> (R² = ' + fmt(bestR2, 2) + '). ' +
+    'It makes the sum of the squared residuals as small as possible, so no line can beat its R². Fit bonus: <b>+' + bonus + '</b>',
+    [{ label: 'CHALLENGES ▸', fn: startQuestions }]);
+  S.enterFn = startQuestions;
+}
+
+function startQuestions() { S.qList = SCHEDULE[S.level].slice(); S.qi = 0; nextQuestion(); }
+function nextQuestion() {
+  if (S.qi >= S.qList.length) return levelSummary();
+  const type = S.qList[S.qi]; setPlot(false);
+  S.q = makeQuestion(type); S.q.t = 0; S.q.done = false; S.mode = 'q'; S.enterFn = null;
+  S.q.begin();
+}
+function answer(ok, explain) {
+  const q = S.q; if (q.done) return; q.done = true; S.asked++;
+  if (ok) {
+    S.correct++; S.levelCorrect++; sfx.good();
+    const bonus = Math.max(0, 50 - Math.floor(q.t * 2));
+    addScore(100 + bonus, P.x + P.w / 2, P.y + 60);
+    hitCount(7, P.x + P.w / 2, P.y + P.h / 2);
+  } else { sfx.bad(); healCount(3); }
+  S.mode = 'qresult';
+  setBar((ok ? '<span class="ok">Correct!</span> ' : '<span class="no">Not quite.</span> ') + explain,
+    [{ label: S.qi + 1 >= S.qList.length ? 'FINISH LEVEL ▸' : 'NEXT ▸', fn: () => { S.qi++; nextQuestion(); } }]);
+  S.enterFn = () => { S.qi++; nextQuestion(); };
+}
+function levelSummary() {
+  setPlot(false); S.mode = 'summary'; const last = S.level === LEVELS.length - 1;
+  setBar('<b>Level ' + (S.level + 1) + ' complete.</b>');
+  const go = () => { if (last) endGame(); else { S.level++; levelIntro(); } };
+  showOverlay('<p class="tagline">Level ' + (S.level + 1) + ' complete</p><h2>' + esc(L.name) + '</h2>' +
+    '<p>Challenges: <strong>' + S.levelCorrect + ' / ' + SCHEDULE[S.level].length + '</strong> · Points this level: <strong>' + S.levelScore + '</strong></p>' +
+    '<p>Count Scatter’s health: <strong>' + S.hp + '%</strong></p>',
+    [{ label: last ? 'FINAL RESULTS ▸' : 'NEXT LEVEL ▸', fn: go }]);
+  S.enterFn = go;
+}
+function ibGrade(c) { return c >= 14 ? 7 : c >= 12 ? 6 : c >= 10 ? 5 : c >= 8 ? 4 : c >= 6 ? 3 : c >= 4 ? 2 : 1; }
+function endGame() {
+  S.mode = 'end'; const won = S.hp <= 0; const g = ibGrade(S.correct);
+  let best = 0; try { best = +localStorage.getItem('slopeshift-best') || 0; if (S.score > best) { localStorage.setItem('slopeshift-best', S.score); } } catch (e) {}
+  const newBest = S.score > best;
+  if (won) countSay('I… am… fitted…', 99); else countSay('I’ll be back with MORE noise!', 99);
+  setBar(won ? '<b>Count Scatter is defeated!</b> The data is safe.' : '<b>Count Scatter escaped</b>, but you can get him next time.');
+  showOverlay('<p class="tagline">' + (won ? 'Victory' : 'He got away') + '</p><h2>' + (won ? 'COUNT SCATTER IS FITTED!' : 'SO CLOSE…') + '</h2>' +
+    '<div class="big">' + S.score + '</div><p>points' + (newBest ? ' · <strong>new personal best!</strong>' : '') + '</p>' +
+    '<p>Challenges correct: <strong>' + S.correct + ' / ' + TOTAL_Q + '</strong></p>' +
+    '<p>Mr. O’s regression grade: <strong>' + g + '</strong> / 7</p>' +
+    (won ? '' : '<p>Tip: correct answers and R² blasts both damage the Count. Keep your line tight to charge faster.</p>'),
+    [{ label: 'PLAY AGAIN ▸', fn: () => { resetGame(); levelIntro(); } }, { label: 'TITLE', cls: 'ghost', fn: titleScreen }]);
+  S.enterFn = () => { resetGame(); levelIntro(); };
+}
+
+// ---------- questions ----------
+function cardsBegin(q, prompt, options, correctIdx, explain, compact) {
+  const order = shuffle(options.map((t, i) => ({ t, ok: i === correctIdx })));
+  q.cards = order.map((o, i) => ({ text: o.t, ok: o.ok, phase: rand(0, 6.28), speed: rand(0.35, 0.6) * (Math.random() < 0.5 ? -1 : 1), shake: 0, state: '' }));
+  q.compact = compact; q.explain = explain; setPlot(compact);
+  q.layout();
+  setBar(prompt + ' <span style="color:#a9a3c9">Click a card or press 1–4.</span>');
+}
+function cardRects(q) {
+  const out = [];
+  if (q.compact) {
+    const x0 = P.x + P.w + 20, colW = (W - 20 - x0) / 2, cw = Math.min(196, colW - 12), ch = 70;
+    q.cards.forEach((c, i) => {
+      const col = i % 2, row = Math.floor(i / 2);
+      const bx = x0 + col * colW + (colW - cw) / 2, by = P.y + 70 + row * 220;
+      out.push({ x: bx, y: by + Math.sin(S.t * Math.abs(c.speed) * 2 + c.phase) * 50, w: cw, h: ch });
+    });
+  } else {
+    const cw = 600, ch = 92, gap = (P.h - 4 * ch) / 5;
+    q.cards.forEach((c, i) => {
+      const amp = (P.w - cw) / 2 - 10, cx = P.x + P.w / 2 + Math.sin(S.t * c.speed + c.phase) * amp;
+      out.push({ x: cx - cw / 2, y: P.y + gap + i * (ch + gap), w: cw, h: ch });
+    });
+  }
+  return out;
+}
+function chooseCard(q, i) {
+  if (q.done || !q.cards[i]) return;
+  const c = q.cards[i]; c.state = c.ok ? 'ok' : 'no'; if (!c.ok) { c.shake = 0.5; q.cards.forEach(k => { if (k.ok) k.state = 'ok'; }); }
+  const r = cardRects(q)[i]; burst(r.x + r.w / 2, r.y + r.h / 2, c.ok ? C.good : C.bad, 16);
+  answer(c.ok, q.explain);
+}
+function cardQuestion(build) {
+  const q = {
+    begin() { build(q); }, layout() {},
+    draw() {
+      drawAxes(); if (!q.compact) { drawPoints(S.pts, 0.35); ctx.fillStyle = 'rgba(14,12,26,0.35)'; ctx.fillRect(P.x, P.y, P.w, P.h); } else { drawPoints(S.pts, 1); if (q.showFit) drawFitLine(S.fit, C.gold, true); }
+      cardRects(q).forEach((r, i) => drawCard(q.cards[i], r, i));
+    },
+    down(px, py) { const rs = cardRects(q); for (let i = 0; i < rs.length; i++) { const r = rs[i]; if (px >= r.x && px <= r.x + r.w && py >= r.y && py <= r.y + r.h) { chooseCard(q, i); return; } } },
+    key(k) { if (k >= '1' && k <= '4') chooseCard(q, +k - 1); }
+  };
+  return q;
+}
+
+function makeQuestion(type) {
+  const fit = S.fit, mR = num(fit.m), bR = num(fit.b), EQ = '<span class="eq">' + eqStr(fit.m, fit.b) + '</span>';
+  const yT = L.yThing;
+  switch (type) {
+    case 'slope': return cardQuestion(q => {
+      const up = mR > 0, mag = fmt(Math.abs(mR));
+      cardsBegin(q, 'The model is ' + EQ + ' (x = ' + esc(L.xName.toLowerCase()) + ', y = ' + esc(L.yName.toLowerCase()) + '). <b>What does the slope ' + fmt(mR) + ' mean?</b>', [
+        'For ' + L.xStep + ', the predicted ' + yT + (up ? ' rises' : ' falls') + ' by ' + mag + ' ' + L.yChange,
+        'The predicted ' + yT + ' is ' + fmt(mR) + ' ' + L.yU + ' when ' + L.x0Phrase,
+        'For ' + L.xStep + ', the predicted ' + yT + (up ? ' falls' : ' rises') + ' by ' + mag + ' ' + L.yChange,
+        'About ' + mag + '% of the data points lie exactly on the line'
+      ], 0, 'The slope is the change in the predicted y for each 1-unit increase in x. Here, for ' + esc(L.xStep) + ', the predicted ' + esc(yT) + (up ? ' rises' : ' falls') + ' by ' + mag + ' ' + esc(L.yChange) + '.', false);
+    });
+    case 'intercept': return cardQuestion(q => {
+      const minX = Math.min.apply(null, S.pts.map(p => p.x)), outside = minX > 0.05 * xr();
+      cardsBegin(q, 'The model is ' + EQ + '. <b>What does ' + fmt(bR) + ' represent?</b>', [
+        'The predicted ' + yT + ' when ' + L.x0Phrase,
+        'How much the predicted ' + yT + ' changes for ' + L.xStep,
+        'The largest ' + yT + ' in the data set',
+        'The correlation coefficient r for this model'
+      ], 0, 'The intercept is the predicted y when x = 0, so ' + fmt(bR) + ' is the predicted ' + esc(yT) + ' when ' + esc(L.x0Phrase) + '.' +
+        (outside ? ' Careful: the data starts at x = ' + fmt(L.dx[0], 1) + ', so x = 0 is outside the data and this value is an extrapolation.' : ''), false);
+    });
+    case 'rpick': return cardQuestion(q => {
+      const rc = num(fit.r, 2), sgn = rc >= 0 ? 1 : -1;
+      const cand = [-rc, num(sgn * 0.15, 2), num(rc * 0.5, 2), num(-sgn * 0.5, 2), num(sgn * 1, 2)];
+      const opts = [rc];
+      for (const c of cand) { if (opts.length >= 4) break; if (opts.every(o => Math.abs(o - c) >= 0.2) && Math.abs(c) <= 1) opts.push(c); }
+      while (opts.length < 4) { const c = num(rand(-1, 1), 2); if (opts.every(o => Math.abs(o - c) >= 0.2)) opts.push(c); }
+      const strength = Math.abs(rc) >= 0.8 ? 'strong' : Math.abs(rc) >= 0.5 ? 'moderate' : 'weak';
+      cardsBegin(q, '<b>Which value of r (the correlation coefficient) best matches this scatter plot?</b>', opts.map(o => 'r = ' + fmt(o, 2)), 0,
+        'r = ' + fmt(rc, 2) + '. r runs from −1 to 1: the sign shows the direction (' + (rc < 0 ? 'negative: as x goes up, y goes down' : 'positive: as x goes up, y goes up') + ') and the size shows the strength. This is a ' + strength + ' ' + (rc < 0 ? 'negative' : 'positive') + ' linear relationship.', true);
+    });
+    case 'r2fromr': return cardQuestion(q => {
+      const rc = num(fit.r, 2), r2 = num(rc * rc, 2);
+      const cand = [rc, num(-r2, 2), num(1 - r2, 2), num(Math.abs(rc) / 2, 2), num(Math.sqrt(Math.abs(rc)), 2)];
+      const opts = [r2];
+      for (const c of cand) { if (opts.length >= 4) break; if (opts.every(o => Math.abs(o - c) >= 0.04)) opts.push(c); }
+      while (opts.length < 4) { const c = num(rand(0, 1), 2); if (opts.every(o => Math.abs(o - c) >= 0.04)) opts.push(c); }
+      cardsBegin(q, 'This model has r = ' + fmt(rc, 2) + '. <b>What is R², the coefficient of determination?</b>', opts.map(o => 'R² = ' + fmt(o, 2)), 0,
+        'For simple linear regression, R² = r². (' + fmt(rc, 2) + ')² = ' + fmt(r2, 2) + '. Squaring removes the sign, so R² is never negative. It means about ' + Math.round(r2 * 100) + '% of the variation in ' + esc(yT) + ' is explained by the model.', true);
+    });
+    case 'r2meaning': return cardQuestion(q => {
+      const r2 = num(fit.r2, 2), pct = Math.round(r2 * 100);
+      q.showFit = false;
+      cardsBegin(q, 'The least-squares model for this data has R² = ' + fmt(r2, 2) + '. <b>What does that tell you?</b>', [
+        'About ' + pct + '% of the variation in ' + yT + ' is explained by the model',
+        pct + '% of the data points lie exactly on the line',
+        'The slope of the line is ' + fmt(r2, 2),
+        'The model’s predictions are exactly right ' + pct + '% of the time'
+      ], 0, 'R² (the coefficient of determination) is the proportion of the variation in y that the model explains. R² = ' + fmt(r2, 2) + ' means about ' + pct + '% of the variation in ' + esc(yT) + ' is explained by ' + esc(L.xName.toLowerCase()) + '. The closer to 1, the better the fit.', false);
+    });
+    case 'extrapolation': return cardQuestion(q => {
+      const a = L.dx[0], b = L.dx[1], d = decimalsFor(b) === 2 ? 1 : 0;
+      const inside = [num(lerp(a, b, 0.2), d), num(lerp(a, b, 0.55), d), num(lerp(a, b, 0.85), d)];
+      const out = num(b + 2.5 * (b - a), 0);
+      cardsBegin(q, 'This model was trained on data where ' + esc(L.xName.toLowerCase()) + ' ran from about ' + fmt(a, 1) + ' to ' + fmt(b, 1) + ' ' + esc(L.xU) + '. <b>Which prediction should you trust LEAST?</b>',
+        [out].concat(inside).map(v => 'Predicting ' + yT + ' when ' + L.xName.toLowerCase() + ' = ' + fmt(v) + ' ' + L.xU), 0,
+        'x = ' + fmt(out) + ' is far outside the data the model was trained on. Using a model outside its data range is <b>extrapolation</b>: the pattern might not continue, so the prediction is unreliable. Predictions inside the range (interpolation) are safer.', false);
+    });
+    case 'residualCalc': return cardQuestion(q => {
+      let tries = 0, xD, ya, yp, res;
+      do {
+        const p = pick(S.pts); xD = num(p.x, 1); ya = num(p.y); yp = num(mR * xD + bR); res = num(ya - yp, decimalsFor(yr() / 10)); tries++;
+      } while ((Math.abs(res) < 0.02 * yr() || res === 0) && tries < 40);
+      if (Math.abs(res) < 1e-9) { ya = num(yp + 0.06 * yr()); res = num(ya - yp, decimalsFor(yr() / 10)); }
+      const d = decimalsFor(yr() / 10);
+      const opts = [res, num(-res, d), num(ya + yp, d), num(Math.abs(res) * 2, d)];
+      cardsBegin(q, 'A data point has ' + esc(L.xName.toLowerCase()) + ' = ' + fmt(xD) + ' and an actual ' + esc(yT) + ' of <b>' + fmt(ya) + '</b>. The model predicts <b>ŷ = ' + fmt(yp) + '</b>. <b>What is the residual?</b>',
+        opts.map(o => fmt(o, d) + ' ' + L.yU), 0,
+        'Residual = actual − predicted = ' + fmt(ya) + ' − ' + fmt(yp) + ' = ' + fmt(res, d) + '. ' + (res > 0 ? 'Positive means the point is above the line.' : 'Negative means the point is below the line.'), true);
+    });
+    case 'static1': return cardQuestion(q => { const s = pick(STATIC.slice(0, 2)); cardsBegin(q, '<b>' + s.q + '</b>', s.o, 0, s.e, false); });
+    case 'static2': return cardQuestion(q => { const s = pick(STATIC.slice(2)); cardsBegin(q, '<b>' + s.q + '</b>', s.o, 0, s.e, false); });
+    case 'predict': return predictQuestion();
+    case 'tune': return tuneQuestion();
+    case 'residualClick': return residualClickQuestion();
+    case 'axes': return axesQuestion();
+  }
+}
+const STATIC = [
+  { q: 'When a linear regression model is trained (fitted), what is it trying to make as small as possible?',
+    o: ['The sum of the squared residuals', 'The number of data points', 'The slope of the line', 'The total of all the x-values'],
+    e: 'Least-squares regression picks the slope and intercept that minimise the sum of the squared residuals (the squared vertical gaps between the points and the line).' },
+  { q: 'Why do we keep some data back as a test set instead of training on all of it?',
+    o: ['To check how well the model predicts data it has never seen', 'To make the training slower on purpose', 'Because a model can only learn from half the data', 'To guarantee that R² equals 1'],
+    e: 'The test set is new data for the model. Checking predictions on it shows whether the model generalises, instead of only matching the training data.' },
+  { q: 'Which task is a good fit for linear regression?',
+    o: ['Predicting a house’s price from its size', 'Sorting emails into spam or not spam', 'Labelling a photo as cat or dog', 'Deciding whether a student passes or fails'],
+    e: 'Regression predicts a continuous number (like a price). The other three choose between categories, which is classification.' },
+  { q: 'Why is linear regression called SUPERVISED learning?',
+    o: ['It learns from training data where the correct outputs (labels) are already known', 'A teacher watches the computer while it trains', 'It finds groups in data that has no labels', 'It learns by trial and error from rewards and penalties'],
+    e: 'Supervised learning trains on labelled data: every training example has the input (feature) and the known correct output (label). Finding groups without labels is unsupervised learning; rewards and penalties is reinforcement learning.' }
+];
+
+function predictQuestion() {
+  const fit = S.fit, mR = num(fit.m), bR = num(fit.b);
+  const a = L.dx[0], b = L.dx[1];
+  let x0 = Math.round(lerp(a, b, rand(0.25, 0.75)));
+  if (x0 === 0) x0 = 1;
+  const ans = mR * x0 + bR;
+  const q = {
+    ans, probe: (L.ymin + L.ymax) / 2, drag: false,
+    begin() {
+      setBar('Count Scatter stole the line! The model is <span class="eq">' + eqStr(fit.m, fit.b) + '</span>. <b>Predict the ' + esc(L.yThing) + ' when ' + esc(L.xName.toLowerCase()) + ' = ' + x0 + ' ' + esc(L.xU) + '.</b> Drag the probe or use ↑/↓ (hold Shift to go fast), then lock it in.',
+        [{ label: 'LOCK IN ▸', id: 'lock', fn: () => q.submit() }]);
+      S.enterFn = () => q.submit();
+    },
+    update(dt) {
+      const s = yr() * (keys.has('Shift') ? 0.5 : 0.12) * dt;
+      if (keys.has('ArrowUp') || keys.has('w')) q.probe += s;
+      if (keys.has('ArrowDown') || keys.has('s')) q.probe -= s;
+      q.probe = clamp(q.probe, L.ymin, L.ymax);
+    },
+    draw() {
+      drawAxes(); drawPoints(S.pts, 0.6);
+      const X = sx(x0);
+      ctx.save(); ctx.setLineDash([6, 8]); ctx.strokeStyle = 'rgba(244,200,74,.5)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(X, P.y); ctx.lineTo(X, P.y + P.h); ctx.stroke(); ctx.restore();
+      if (q.done) { drawFitLine({ m: mR, b: bR }, C.gold, true); dot(X, sy(ans), 9, C.gold); }
+      const Y = sy(q.probe);
+      ctx.save(); ctx.strokeStyle = C.beam; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(P.x, Y); ctx.lineTo(X, Y); ctx.globalAlpha = 0.35; ctx.stroke(); ctx.restore();
+      ctx.save(); ctx.shadowColor = C.beam; ctx.shadowBlur = 16; dot(X, Y, 13, C.beam); ctx.restore();
+      ctx.fillStyle = '#15121f'; ctx.font = '700 12px "Space Grotesk", system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.fillText('?', X, Y + 4);
+      label(fmt(q.probe), X + 22, Y - 12, C.beam, 22, 'left');
+    },
+    down(px, py) { q.drag = true; q.move(px, py); },
+    move(px, py) { if (q.drag && !q.done) q.probe = clamp(num(wy(py), decimalsFor(yr() / 10)), L.ymin, L.ymax); },
+    up() { q.drag = false; },
+    submit() {
+      if (q.done) return;
+      const ok = Math.abs(q.probe - ans) <= 0.025 * yr();
+      answer(ok, 'ŷ = ' + fmt(mR) + ' × ' + x0 + (bR < 0 ? ' − ' + fmt(-bR) : ' + ' + fmt(bR)) + ' = <b>' + fmt(ans) + '</b> ' + esc(L.yU) + '. You said ' + fmt(q.probe) + '. To predict, substitute x into the regression equation.');
+    }
+  };
+  return q;
+}
+
+function tuneQuestion() {
+  let m, b, tries = 0;
+  do {
+    m = niceRound(L.m * rand(0.6, 1.4));
+    const yMid = (L.ymin + L.ymax) / 2 + rand(-0.15, 0.15) * yr();
+    const xMid = (L.xmin + L.xmax) / 2;
+    b = yMid - m * xMid; const st = niceStep(yr(), 20); b = Math.round(b / st) * st;
+    tries++;
+  } while (tries < 50 && !(m * XL() + b > L.ymin + 0.05 * yr() && m * XL() + b < L.ymax - 0.05 * yr() && m * XR() + b > L.ymin + 0.05 * yr() && m * XR() + b < L.ymax - 0.05 * yr()));
+  m = num(m); b = num(b);
+  const q = {
+    tm: m, tb: b,
+    begin() {
+      S.line = { yL: (L.ymin + L.ymax) / 2, yR: (L.ymin + L.ymax) / 2, vL: 0, vR: 0 };
+      setBar('Count Scatter jammed your readout! <b>Shape yourself into the line <span class="eq">' + eqStr(m, b) + '</span></b> using the grid. Arrows / WASD or drag the ends, then lock it in. (Hint: find the y-value at two x-values.)',
+        [{ label: 'LOCK IN ▸', fn: () => q.submit() }]);
+      S.enterFn = () => q.submit();
+    },
+    update(dt) { if (!q.done) controlLine(dt); },
+    draw() {
+      drawAxes(true);
+      if (q.done) drawFitLine({ m, b }, C.gold, true);
+      drawPlayerLine(false);
+    },
+    down(px, py) { grabLine(px, py); }, move(px, py) { dragLine(px, py); }, up() { releaseLine(); },
+    submit() {
+      if (q.done) return;
+      const tl = m * XL() + b, tr = m * XR() + b;
+      const ok = Math.abs(S.line.yL - tl) <= 0.045 * yr() && Math.abs(S.line.yR - tr) <= 0.045 * yr();
+      answer(ok, 'Target: <span class="eq">' + eqStr(m, b) + '</span>. Yours: <span class="eq">' + eqStr(lineM(), lineB()) + '</span>. The slope ' + fmt(m) + ' is the rise per 1 unit of x, and ' + fmt(b) + ' is where the line would cross x = 0. The gold dashed line shows the target.');
+    }
+  };
+  return q;
+}
+
+function residualClickQuestion() {
+  let pts, fit, idx, tries = 0;
+  do {
+    pts = genPoints(L, 11); const k = Math.floor(rand(2, 9));
+    pts[k].y = clamp(pts[k].y + (Math.random() < 0.5 ? -1 : 1) * (3 * L.sd + 0.1 * yr()), L.ymin + 0.02 * yr(), L.ymax - 0.02 * yr());
+    fit = fitOf(pts);
+    const rs = pts.map(p => Math.abs(p.y - (fit.m * p.x + fit.b)));
+    const sorted = rs.slice().sort((a, c) => c - a); idx = rs.indexOf(sorted[0]);
+    if (sorted[0] >= 1.6 * sorted[1]) break; tries++;
+  } while (tries < 60);
+  const q = {
+    pts, fit, idx, chosen: -1,
+    begin() {
+      setBar('Here’s a new batch with its least-squares line. <b>Click the data point with the largest residual</b> (the biggest vertical gap from the line).');
+    },
+    draw() {
+      drawAxes(); drawFitLine(fit, C.gold, false);
+      if (q.done) pts.forEach((p, i) => { if (i === idx || i === q.chosen) residualBar(p, fit, i === idx ? C.good : C.bad, true); });
+      pts.forEach((p, i) => dot(sx(p.x), sy(p.y), i === q.chosen ? 11 : 8, q.done && i === idx ? C.good : q.done && i === q.chosen ? C.bad : C.beam));
+    },
+    down(px, py) {
+      if (q.done) return; let best = -1, bd = 40;
+      pts.forEach((p, i) => { const d = Math.hypot(sx(p.x) - px, sy(p.y) - py); if (d < bd) { bd = d; best = i; } });
+      if (best < 0) return; q.chosen = best;
+      const p = pts[idx], res = p.y - (fit.m * p.x + fit.b);
+      answer(best === idx, 'A residual is actual − predicted: the vertical distance from a point to the line. The biggest one here is ' + fmt(res) + ' ' + esc(L.yU) + (res > 0 ? ' (above the line)' : ' (below the line)') + '. Points with huge residuals might be outliers worth checking.');
+    }
+  };
+  return q;
+}
+
+function axesQuestion() {
+  const chips = shuffle([
+    { id: 'fx', t: L.xName }, { id: 'ly', t: L.yName },
+    { id: 'tf', t: 'Feature (independent variable)' }, { id: 'tl', t: 'Label (dependent variable)' }
+  ]);
+  const q = {
+    sel: null, slots: { x: [], y: [] },
+    begin() { q.render(); },
+    render() {
+      const used = new Set(q.slots.x.concat(q.slots.y));
+      const chipHtml = chips.map(c => '<button type="button" class="chip' + (q.sel === c.id ? ' sel' : '') + (used.has(c.id) ? ' used' : '') + '" data-id="' + c.id + '">' + esc(c.t) + '</button>').join('');
+      const slot = (k, lbl) => '<div class="slot" data-slot="' + k + '"><span class="lbl">' + lbl + '</span>' + q.slots[k].map(id => '<span class="in">' + esc(chips.find(c => c.id === id).t) + '</span>').join('') + '</div>';
+      setBar((q.warn ? '<span class="no">Place all four tags first.</span> ' : '') + '<b>We want to PREDICT ' + esc(L.yName.toLowerCase()) + ' from ' + esc(L.xName.toLowerCase()) + '.</b> Tap a tag, then tap the axis it belongs on (two tags per axis).' +
+        '<div class="chips">' + chipHtml + '</div><div class="slots">' + slot('x', 'x-axis (horizontal)') + slot('y', 'y-axis (vertical)') + '</div>',
+        [{ label: 'RESET', cls: 'ghost', fn: () => { q.slots = { x: [], y: [] }; q.sel = null; q.render(); } }, { label: 'LOCK IN ▸', fn: () => q.submit() }]);
+      promptEl.querySelectorAll('.chip').forEach(el => el.addEventListener('click', () => { if (used.has(el.dataset.id) || q.done) return; q.sel = el.dataset.id; sfx.tick(); q.render(); }));
+      promptEl.querySelectorAll('.slot').forEach(el => el.addEventListener('click', () => {
+        if (!q.sel || q.done) return; const k = el.dataset.slot; if (q.slots[k].length >= 2) return;
+        q.slots[k].push(q.sel); q.sel = null; sfx.pop(); q.render();
+      }));
+      S.enterFn = () => q.submit();
+    },
+    draw() {
+      drawAxes(false, true); drawPoints(S.pts, 0.5);
+      ctx.save(); ctx.font = '700 40px "Press Start 2P", monospace'; ctx.fillStyle = 'rgba(244,200,74,.8)'; ctx.textAlign = 'center';
+      ctx.fillText('?', P.x + P.w / 2, P.y + P.h + 60); ctx.fillText('?', P.x - 50, P.y + P.h / 2 + 20); ctx.restore();
+    },
+    submit() {
+      if (q.done) return;
+      if (q.slots.x.length + q.slots.y.length < 4) { q.warn = true; q.render(); return; }
+      const ok = q.slots.x.includes('fx') && q.slots.x.includes('tf') && q.slots.y.includes('ly') && q.slots.y.includes('tl');
+      answer(ok, 'The <b>feature</b> (independent variable, the input) goes on the x-axis: ' + esc(L.xName.toLowerCase()) + '. The <b>label</b> (dependent variable, the output we predict) goes on the y-axis: ' + esc(L.yName.toLowerCase()) + '.');
+    }
+  };
+  return q;
+}
+
+// ---------- line control ----------
+let grab = null;
+function controlLine(dt) {
+  const sp = 0.55 * yr();
+  let tL = 0, tR = 0;
+  if (keys.has('ArrowUp') || keys.has('w')) { tL += sp; tR += sp; }
+  if (keys.has('ArrowDown') || keys.has('s')) { tL -= sp; tR -= sp; }
+  if (keys.has('ArrowRight') || keys.has('d')) { tL -= sp * 0.7; tR += sp * 0.7; }
+  if (keys.has('ArrowLeft') || keys.has('a')) { tL += sp * 0.7; tR -= sp * 0.7; }
+  const k = Math.min(1, dt * 8);
+  S.line.vL += (tL - S.line.vL) * k; S.line.vR += (tR - S.line.vR) * k;
+  S.line.yL += S.line.vL * dt; S.line.yR += S.line.vR * dt;
+  const lo = L.ymin - 0.4 * yr(), hi = L.ymax + 0.4 * yr();
+  S.line.yL = clamp(S.line.yL, lo, hi); S.line.yR = clamp(S.line.yR, lo, hi);
+}
+function grabLine(px, py) { grab = { side: px < P.x + P.w / 2 ? 'L' : 'R', lastY: py }; }
+function dragLine(px, py) {
+  if (!grab) return; const dy = (grab.lastY - py) / P.h * yr(); grab.lastY = py;
+  if (grab.side === 'L') S.line.yL += dy; else S.line.yR += dy;
+  S.line.vL = S.line.vR = 0;
+}
+function releaseLine() { grab = null; }
+
+// ---------- feed phase update ----------
+function updateFeed(dt) {
+  const f = S.feed; f.t += dt;
+  controlLine(dt);
+  // spawn data points
+  f.nextSpawn -= dt;
+  if (f.pending.length && f.nextSpawn <= 0) { const p = f.pending.pop(); f.falling.push({ x: p.x, y: p.y, t: 0, dur: 0.7 }); f.nextSpawn = (FEED_TIME * 0.62) / L.n; }
+  for (const p of f.falling) { p.t += dt; if (p.t >= p.dur) { f.landed.push({ x: p.x, y: p.y }); burst(sx(p.x), sy(p.y), C.beam, 6); } }
+  f.falling = f.falling.filter(p => p.t < p.dur);
+  // meteors
+  f.nextMeteor -= dt;
+  if (f.nextMeteor <= 0 && f.t < FEED_TIME - 3) {
+    f.nextMeteor = METEOR_GAP[S.level] * rand(0.75, 1.25);
+    const tx = rand(L.dx[0], L.dx[1]), trend = L.m * tx + L.b;
+    let ty = trend + (Math.random() < 0.5 ? -1 : 1) * rand(0.3, 0.5) * yr();
+    if (ty < L.ymin + 0.04 * yr() || ty > L.ymax - 0.04 * yr()) ty = trend + (ty < trend ? 1 : -1) * rand(0.3, 0.45) * yr();
+    ty = clamp(ty, L.ymin + 0.04 * yr(), L.ymax - 0.04 * yr());
+    f.meteors.push({ tx, ty, t: 0, dur: rand(1.7, 2.4) - S.level * 0.12 });
+    S.count.wob = 0.6; if (Math.random() < 0.35) countSay(pick(TAUNTS), 1.6);
+  }
+  for (const m of f.meteors) {
+    m.t += dt;
+    if (m.t >= m.dur) { m.dead = true; f.corrupt.push({ x: m.tx, y: m.ty, t: 0 }); sfx.land(); burst(sx(m.tx), sy(m.ty), C.bad, 10); }
+  }
+  f.meteors = f.meteors.filter(m => !m.dead);
+  // outliers pull the line (this is basically a gradient-descent step!)
+  for (const c of f.corrupt) {
+    c.t += dt; const e = c.y - lineY(c.x), t = clamp((c.x - XL()) / (XR() - XL()), 0, 1);
+    S.line.yL += 0.5 * e * (1 - t) * dt; S.line.yR += 0.5 * e * t * dt;
+  }
+  // gusts
+  f.nextGust -= dt;
+  if (f.nextGust <= 0) {
+    f.nextGust = GUST_GAP[S.level] * rand(0.8, 1.2);
+    const s = (Math.random() < 0.5 ? -1 : 1) * yr() * (0.9 + S.level * 0.15);
+    S.line.vL += s; S.line.vR -= s * rand(0.2, 1);
+    addText(P.x + P.w / 2, P.y + 50, 'SHOVE!', C.count, 30); S.count.wob = 1; sfx.laugh();
+  }
+  // live R² and scoring
+  const all = f.landed.concat(f.corrupt);
+  f.r2 = all.length >= 3 ? r2Of(all, lineM(), lineB()) : 0;
+  if (f.landed.length >= 3) {
+    f.scoreAcc += Math.max(0, f.r2) * 12 * dt;
+    if (f.scoreAcc >= 1) { const n = Math.floor(f.scoreAcc); f.scoreAcc -= n; S.score += n; S.levelScore += n; }
+    if (f.r2 >= 0.6) f.charge = Math.min(1, f.charge + (f.r2 - 0.55) * 0.55 * dt);
+  }
+  if ((f.charge >= 1) !== f.barReady) feedBar();
+  if (f.t >= FEED_TIME) endFeed();
+}
+function feedClick(px, py) {
+  const f = S.feed;
+  for (const m of f.meteors) { const p = meteorPos(m); if (Math.hypot(p.x - px, p.y - py) < 34) { m.dead = true; sfx.pop(); burst(p.x, p.y, C.bad, 16); addScore(15, p.x, p.y - 10); f.meteors = f.meteors.filter(k => !k.dead); return true; } }
+  for (let i = 0; i < f.corrupt.length; i++) { const c = f.corrupt[i], X = sx(c.x), Y = sy(c.y); if (Math.hypot(X - px, Y - py) < 30) { f.corrupt.splice(i, 1); sfx.pop(); burst(X, Y, C.bad, 12); addScore(5, X, Y - 10); return true; } }
+  return false;
+}
+function meteorPos(m) {
+  const t = clamp(m.t / m.dur, 0, 1), x0 = COUNT_POS.x, y0 = COUNT_POS.y + 10, x2 = sx(m.tx), y2 = sy(m.ty);
+  const cx = (x0 + x2) / 2, cy = Math.min(y0, y2) - 120;
+  return { x: (1 - t) * (1 - t) * x0 + 2 * (1 - t) * t * cx + t * t * x2, y: (1 - t) * (1 - t) * y0 + 2 * (1 - t) * t * cy + t * t * y2 };
+}
+
+// ---------- drawing ----------
+function dot(x, y, r, color) { ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fillStyle = color; ctx.fill(); }
+function label(s, x, y, color = C.text, size = 16, align = 'center', font = 'Space Grotesk', weight = 700) {
+  ctx.font = weight + ' ' + size + 'px "' + font + '", ' + (font === 'Press Start 2P' ? 'monospace' : 'system-ui, sans-serif'); ctx.fillStyle = color; ctx.textAlign = align; ctx.fillText(s, x, y);
+}
+function drawAxes(gridLabels = true, hideNames = false) {
+  ctx.fillStyle = '#141228'; ctx.fillRect(P.x, P.y, P.w, P.h);
+  const xs = niceStep(xr(), 10), ys = niceStep(yr(), 8);
+  ctx.lineWidth = 1; ctx.strokeStyle = C.grid; ctx.beginPath();
+  for (let x = Math.ceil(L.xmin / xs) * xs; x <= L.xmax + 1e-9; x += xs) { ctx.moveTo(sx(x), P.y); ctx.lineTo(sx(x), P.y + P.h); }
+  for (let y = Math.ceil(L.ymin / ys) * ys; y <= L.ymax + 1e-9; y += ys) { ctx.moveTo(P.x, sy(y)); ctx.lineTo(P.x + P.w, sy(y)); }
+  ctx.stroke();
+  // x = 0 axis line if visible
+  if (L.xmin < 0 && L.xmax > 0) { ctx.strokeStyle = 'rgba(255,255,255,.18)'; ctx.beginPath(); ctx.moveTo(sx(0), P.y); ctx.lineTo(sx(0), P.y + P.h); ctx.stroke(); }
+  ctx.strokeStyle = C.line; ctx.lineWidth = 2; ctx.strokeRect(P.x, P.y, P.w, P.h);
+  if (gridLabels) {
+    const dx = decimalsFor(xs) === 2 && xs < 1 ? 1 : 0, dy = ys < 1 ? 1 : 0;
+    for (let x = Math.ceil(L.xmin / xs) * xs; x <= L.xmax + 1e-9; x += xs) label(fmt(x, dx), sx(x), P.y + P.h + 22, C.muted, 15, 'center', 'Space Grotesk', 500);
+    for (let y = Math.ceil(L.ymin / ys) * ys; y <= L.ymax + 1e-9; y += ys) label(fmt(y, dy), P.x - 10, sy(y) + 5, C.muted, 15, 'right', 'Space Grotesk', 500);
+  }
+  if (!hideNames) {
+    label(L.xName + ' (' + L.xU + ')', P.x + P.w / 2, P.y + P.h + 52, C.text, 17);
+    ctx.save(); ctx.translate(P.x - 64, P.y + P.h / 2); ctx.rotate(-Math.PI / 2); label(L.yName + ' (' + L.yU + ')', 0, 0, C.text, 17); ctx.restore();
+  }
+}
+function clipPlot(fn) { ctx.save(); ctx.beginPath(); ctx.rect(P.x, P.y, P.w, P.h); ctx.clip(); fn(); ctx.restore(); }
+function drawPoints(pts, alpha = 1) {
+  ctx.save(); ctx.globalAlpha = alpha;
+  for (const p of pts) dot(sx(p.x), sy(p.y), 7, C.beam);
+  ctx.restore();
+}
+function drawFitLine(fit, color, dashed) {
+  clipPlot(() => {
+    ctx.strokeStyle = color; ctx.lineWidth = 3; if (dashed) ctx.setLineDash([14, 10]);
+    ctx.beginPath(); ctx.moveTo(sx(L.xmin), sy(fit.m * L.xmin + fit.b)); ctx.lineTo(sx(L.xmax), sy(fit.m * L.xmax + fit.b)); ctx.stroke();
+  });
+}
+function residualBar(p, fit, color, withLabel) {
+  const yh = fit.m * p.x + fit.b; ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(sx(p.x), sy(p.y)); ctx.lineTo(sx(p.x), sy(yh)); ctx.stroke(); ctx.restore();
+  if (withLabel) label((p.y - yh > 0 ? '+' : '') + fmt(p.y - yh), sx(p.x) + 12, (sy(p.y) + sy(yh)) / 2 + 5, color, 16, 'left');
+}
+function drawPlayerLine(showReadout = true) {
+  const m = lineM(), b = lineB();
+  clipPlot(() => {
+    const x1 = L.xmin, x2 = L.xmax;
+    ctx.save(); ctx.strokeStyle = C.beam; ctx.lineCap = 'round';
+    ctx.globalAlpha = 0.25; ctx.lineWidth = 16; ctx.beginPath(); ctx.moveTo(sx(x1), sy(m * x1 + b)); ctx.lineTo(sx(x2), sy(m * x2 + b)); ctx.stroke();
+    ctx.globalAlpha = 1; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(sx(x1), sy(m * x1 + b)); ctx.lineTo(sx(x2), sy(m * x2 + b)); ctx.stroke();
+    ctx.restore();
+  });
+  // handles + face
+  [[XL(), S.line.yL], [XR(), S.line.yR]].forEach(([x, y]) => { const X = sx(x), Y = clamp(sy(y), P.y, P.y + P.h); ctx.save(); ctx.strokeStyle = '#15121f'; ctx.lineWidth = 3; dot(X, Y, 13, C.beam); ctx.stroke(); ctx.restore(); });
+  const cx = (XL() + XR()) / 2, X = sx(cx), Y = clamp(sy(lineY(cx)), P.y + 20, P.y + P.h - 20), ang = Math.atan2(sy(lineY(cx + 1)) - sy(lineY(cx)), sx(cx + 1) - sx(cx));
+  ctx.save(); ctx.translate(X, Y); ctx.rotate(ang);
+  ctx.fillStyle = '#15121f'; ctx.beginPath(); ctx.roundRect(-30, -16, 60, 32, 14); ctx.fill(); ctx.strokeStyle = C.beam; ctx.lineWidth = 3; ctx.stroke();
+  const happy = !S.feed || S.mode !== 'feed' || S.feed.r2 > 0.6;
+  dot(-10, -3, 4, C.beam); dot(10, -3, 4, C.beam);
+  ctx.strokeStyle = C.beam; ctx.lineWidth = 3; ctx.beginPath(); if (happy) ctx.arc(0, 2, 8, 0.15 * Math.PI, 0.85 * Math.PI); else { ctx.moveTo(-7, 9); ctx.lineTo(7, 9); } ctx.stroke();
+  ctx.restore();
+  if (showReadout) label(eqStr(m, b), P.x + 14, P.y + 28, C.beam, 20, 'left');
+}
+function wrap(text, maxW) {
+  const words = text.split(' '), lines = []; let cur = '';
+  for (const w of words) { const t = cur ? cur + ' ' + w : w; if (ctx.measureText(t).width > maxW && cur) { lines.push(cur); cur = w; } else cur = t; }
+  if (cur) lines.push(cur); return lines;
+}
+function drawCard(c, r, i) {
+  ctx.save();
+  const sh = c.shake > 0 ? Math.sin(c.shake * 60) * 8 : 0;
+  ctx.translate(sh, 0);
+  ctx.fillStyle = c.state === 'ok' ? 'rgba(107,227,143,.22)' : c.state === 'no' ? 'rgba(255,107,107,.22)' : '#221e3b';
+  ctx.strokeStyle = c.state === 'ok' ? C.good : c.state === 'no' ? C.bad : C.count; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, 16); ctx.fill(); ctx.stroke();
+  dot(r.x + 26, r.y + r.h / 2, 15, C.count); label(String(i + 1), r.x + 26, r.y + r.h / 2 + 6, '#15121f', 15, 'center', 'Press Start 2P', 400);
+  const size = r.w < 300 ? 20 : 19; ctx.font = '700 ' + size + 'px "Space Grotesk", system-ui, sans-serif';
+  const lines = wrap(c.text, r.w - 64).slice(0, 3), lh = size + 5, y0 = r.y + r.h / 2 - (lines.length - 1) * lh / 2 + 6;
+  lines.forEach((ln, k) => label(ln, r.x + 50, y0 + k * lh, C.text, size, 'left'));
+  ctx.restore();
+}
+function drawCount() {
+  const c = S.count, x = COUNT_POS.x, y = COUNT_POS.y;
+  const wob = reduceMotion ? 0 : Math.sin(S.t * 18) * 6 * c.wob;
+  ctx.save(); ctx.translate(x + wob, y + Math.sin(S.t * 2) * 3);
+  // body made of scattered dots
+  for (let i = 0; i < 26; i++) {
+    const a = i * 2.4 + S.t * 0.6, rr = 8 + (i * 37 % 26);
+    dot(Math.cos(a) * rr, Math.sin(a) * rr * 0.9, 4 + (i % 3), c.hurt > 0 ? '#e7c6ff' : C.count);
+  }
+  // hat
+  ctx.fillStyle = '#2a1840'; ctx.fillRect(-20, -62, 40, 30); ctx.fillRect(-30, -34, 60, 7); ctx.fillStyle = C.gold; ctx.fillRect(-20, -42, 40, 6);
+  // face
+  dot(-9, -4, 6, '#fff'); dot(10, -4, 6, '#fff'); dot(-8, -3, 3, '#15121f'); dot(11, -3, 3, '#15121f');
+  ctx.strokeStyle = C.gold; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(10, -4, 9, 0, Math.PI * 2); ctx.stroke(); ctx.beginPath(); ctx.moveTo(18, 0); ctx.lineTo(22, 18); ctx.stroke();
+  ctx.strokeStyle = '#15121f'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(-10, 10); ctx.quadraticCurveTo(0, c.hurt > 0 ? 6 : 18, 10, 10); ctx.stroke();
+  ctx.restore();
+  // HP bar
+  const bw = 190, bx = x - 70 - bw, by = 40;
+  label('COUNT SCATTER', bx, by - 10, C.count, 10, 'left', 'Press Start 2P', 400);
+  ctx.fillStyle = '#2a2549'; ctx.fillRect(bx, by, bw, 14); ctx.fillStyle = C.count; ctx.fillRect(bx, by, bw * S.hp / 100, 14);
+  ctx.strokeStyle = C.line; ctx.lineWidth = 2; ctx.strokeRect(bx, by, bw, 14);
+  if (c.sayT > 0 && c.say) {
+    ctx.font = '700 16px "Space Grotesk", system-ui, sans-serif'; const tw = ctx.measureText(c.say).width + 24, tx = x - 60 - tw, ty = 66;
+    ctx.fillStyle = '#f1eefc'; ctx.beginPath(); ctx.roundRect(tx, ty, tw, 30, 10); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(tx + tw, ty + 10); ctx.lineTo(tx + tw + 14, ty + 6); ctx.lineTo(tx + tw, ty + 22); ctx.fill();
+    label(c.say, tx + 12, ty + 21, '#2a1840', 16, 'left');
+  }
+}
+function drawHUD() {
+  label('SLOPE SHIFT', 26, 42, C.beam, 16, 'left', 'Press Start 2P', 400);
+  if (S.mode !== 'title') {
+    label('Level ' + (S.level + 1) + ' / 5 · ' + L.name, 26, 72, C.muted, 17, 'left');
+    label('SCORE ' + S.score, 26, 104, C.gold, 14, 'left', 'Press Start 2P', 400);
+  }
+  if (S.mode === 'feed') {
+    const f = S.feed, bx = 330, by = 30, bw = 250;
+    label('R² ' + fmt(Math.max(0, f.r2), 2), bx, by + 14, C.text, 13, 'left', 'Press Start 2P', 400);
+    ctx.fillStyle = '#2a2549'; ctx.fillRect(bx, by + 24, bw, 12); ctx.fillStyle = f.r2 >= 0.6 ? C.good : C.bad; ctx.fillRect(bx, by + 24, bw * clamp(f.r2, 0, 1), 12);
+    label('BLAST', bx, by + 64, C.text, 11, 'left', 'Press Start 2P', 400);
+    ctx.fillStyle = '#2a2549'; ctx.fillRect(bx + 70, by + 52, bw - 70, 12); ctx.fillStyle = C.gold; ctx.fillRect(bx + 70, by + 52, (bw - 70) * f.charge, 12);
+    // time bar
+    ctx.fillStyle = '#2a2549'; ctx.fillRect(P.x, P.y - 10, P.w, 5); ctx.fillStyle = C.beam; ctx.fillRect(P.x, P.y - 10, P.w * (1 - f.t / FEED_TIME), 5);
+  }
+}
+function drawFeed() {
+  const f = S.feed;
+  drawAxes();
+  // residual tethers
+  clipPlot(() => {
+    for (const p of f.landed) { const e = Math.abs(p.y - lineY(p.x)) / yr(); ctx.strokeStyle = e < 0.06 ? 'rgba(107,227,143,.55)' : e < 0.15 ? 'rgba(244,200,74,.45)' : 'rgba(255,107,107,.45)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(sx(p.x), sy(p.y)); ctx.lineTo(sx(p.x), sy(lineY(p.x))); ctx.stroke(); }
+    for (const c of f.corrupt) { ctx.strokeStyle = 'rgba(255,107,107,.7)'; ctx.setLineDash([4, 6]); ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(sx(c.x), sy(c.y)); ctx.lineTo(sx(c.x), sy(lineY(c.x))); ctx.stroke(); ctx.setLineDash([]); }
+  });
+  drawPlayerLine(true);
+  for (const p of f.landed) { const near = Math.abs(p.y - lineY(p.x)) / yr() < 0.06; ctx.save(); if (near) { ctx.shadowColor = C.beam; ctx.shadowBlur = 12; } dot(sx(p.x), sy(p.y), near ? 8 : 7, near ? '#9ff3fb' : C.beam); ctx.restore(); }
+  for (const p of f.falling) { const t = p.t / p.dur, e = 1 - (1 - t) * (1 - t); const Y = lerp(P.y, sy(p.y), e); ctx.save(); ctx.globalAlpha = 0.4 + 0.6 * t; dot(sx(p.x), Y, 7, C.beam); ctx.restore(); }
+  for (const c of f.corrupt) { const j = reduceMotion ? 0 : Math.sin(S.t * 20 + c.x) * 2; const X = sx(c.x) + j, Y = sy(c.y); dot(X, Y, 11, C.bad); ctx.strokeStyle = '#15121f'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(X - 5, Y - 5); ctx.lineTo(X + 5, Y + 5); ctx.moveTo(X + 5, Y - 5); ctx.lineTo(X - 5, Y + 5); ctx.stroke(); }
+  for (const m of f.meteors) {
+    const p = meteorPos(m); ctx.save(); ctx.shadowColor = C.bad; ctx.shadowBlur = 18; dot(p.x, p.y, 15, C.bad); ctx.restore();
+    dot(p.x - 4, p.y - 4, 4, '#ffd0d0');
+    // landing marker
+    ctx.save(); ctx.strokeStyle = 'rgba(255,107,107,.5)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(sx(m.tx), sy(m.ty), 16 * (1 - m.t / m.dur) + 6, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+  }
+}
+function drawReveal() {
+  drawAxes();
+  clipPlot(() => { for (const p of S.pts) residualBar(p, S.fit, 'rgba(244,200,74,.4)', false); });
+  drawPlayerLine(true); drawFitLine(S.fit, C.gold, true); drawPoints(S.pts);
+  label('Least squares: ' + eqStr(S.fit.m, S.fit.b), P.x + 14, P.y + 56, C.gold, 20, 'left');
+}
+function drawFx(dt) {
+  for (const b of S.beams) {
+    b.t += dt; const a = 1 - b.t / 0.5; if (a <= 0) continue;
+    ctx.save(); ctx.globalAlpha = a; ctx.strokeStyle = C.gold; ctx.lineWidth = 8; ctx.lineCap = 'round'; ctx.shadowColor = C.gold; ctx.shadowBlur = 16;
+    ctx.beginPath(); ctx.moveTo(b.x1, b.y1); ctx.lineTo(b.x2, b.y2); ctx.stroke(); ctx.restore();
+  }
+  S.beams = S.beams.filter(b => b.t < 0.5);
+  for (const p of S.particles) { p.t += dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 300 * dt; ctx.save(); ctx.globalAlpha = Math.max(0, 1 - p.t / p.life); dot(p.x, p.y, 3.5, p.color); ctx.restore(); }
+  S.particles = S.particles.filter(p => p.t < p.life);
+  for (const t of S.texts) { t.t += dt; ctx.save(); ctx.globalAlpha = Math.max(0, 1 - t.t / 1.1); label(t.s, t.x, t.y - t.t * 40, t.color, t.size, 'center', 'Press Start 2P', 400); ctx.restore(); }
+  S.texts = S.texts.filter(t => t.t < 1.1);
+}
+
+// ---------- main loop ----------
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000) * (S.speed || 1); last = now; S.t += dt;
+  const c = S.count; c.wob = Math.max(0, c.wob - dt * 1.5); c.hurt = Math.max(0, c.hurt - dt); c.sayT = Math.max(0, c.sayT - dt);
+  if (S.mode === 'feed') updateFeed(dt);
+  if ((S.mode === 'q' || S.mode === 'qresult') && S.q) { S.q.t += dt; if (S.q.update && S.mode === 'q') S.q.update(dt); if (S.q.cards) S.q.cards.forEach(k => k.shake = Math.max(0, k.shake - dt)); }
+  ctx.clearRect(0, 0, W, H); ctx.fillStyle = '#110f20'; ctx.fillRect(0, 0, W, H);
+  if (S.mode === 'feed') drawFeed();
+  else if (S.mode === 'reveal') drawReveal();
+  else if ((S.mode === 'q' || S.mode === 'qresult') && S.q) S.q.draw();
+  else { drawAxes(); drawPoints(S.pts, 0.8); if (S.mode === 'title') drawPlayerLine(false); }
+  drawHUD(); drawCount(); drawFx(dt);
+  requestAnimationFrame(frame);
+}
+
+// ---------- input ----------
+function toCanvas(e) { const r = cv.getBoundingClientRect(); return { x: (e.clientX - r.left) / r.width * W, y: (e.clientY - r.top) / r.height * H }; }
+cv.addEventListener('pointerdown', e => {
+  const p = toCanvas(e); try { cv.setPointerCapture(e.pointerId); } catch (er) {}
+  if (S.mode === 'feed') { if (!feedClick(p.x, p.y)) grabLine(p.x, p.y); }
+  else if (S.mode === 'q' && S.q && S.q.down) S.q.down(p.x, p.y);
+  e.preventDefault();
+});
+cv.addEventListener('pointermove', e => {
+  const p = toCanvas(e);
+  if (S.mode === 'feed') dragLine(p.x, p.y);
+  else if (S.mode === 'q' && S.q && S.q.move) S.q.move(p.x, p.y);
+});
+const up = () => { releaseLine(); if (S.q && S.q.up) S.q.up(); };
+cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
+const KEYMAP = { W: 'w', A: 'a', S: 's', D: 'd' };
+window.addEventListener('keydown', e => {
+  const k = KEYMAP[e.key] || e.key;
+  if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(k) && e.target.tagName !== 'INPUT') e.preventDefault();
+  keys.add(k);
+  if (k === 'm' || k === 'M') { soundOn = !soundOn; updateMute(); }
+  if (k === ' ' && S.mode === 'feed') fireBlast();
+  if (k === 'Enter' && S.enterFn && !(document.activeElement && document.activeElement.tagName === 'BUTTON')) { e.preventDefault(); const fn = S.enterFn; fn(); }
+  if (S.mode === 'q' && S.q && S.q.key) S.q.key(k);
+});
+window.addEventListener('keyup', e => { keys.delete(KEYMAP[e.key] || e.key); });
+window.addEventListener('blur', () => keys.clear());
+
+// test hooks
+S.api = { meteorPos, startFeed, endFeed, nextQuestion, answer, levelSummary, endGame, levelIntro, LEVELS, SCHEDULE, fitOf, r2Of, lineM, lineB, chooseCard, cardRects, sx, sy };
+
+titleScreen();
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
