@@ -131,9 +131,9 @@ const FEED_TIME = 36;
 const SCHEDULE = [
   ['axes', 'slope', 'predict'],
   ['rpick', 'tune', 'residualClick'],
-  ['r2meaning', 'predict', 'intercept'],
-  ['residualCalc', 'tune', 'static1'],
-  ['extrapolation', 'r2fromr', 'static2']
+  ['rinterpret', 'predict', 'intercept'],
+  ['byeye', 'static1', 'tune'],
+  ['extrapolation', 'meanpoint', 'static2']
 ];
 const TOTAL_Q = SCHEDULE.reduce((a, s) => a + s.length, 0);
 
@@ -257,7 +257,7 @@ function burst(x, y, color, n = 14) {
   for (let i = 0; i < n; i++) { const a = rand(0, Math.PI * 2), v = rand(80, 260); S.particles.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: rand(0.4, 0.8), t: 0, color }); }
 }
 const TAUNTS = ['Outliers are my friends!', 'Scattered! Ha!', 'r = 0, forever!', 'Fit THIS!', 'My data, my rules!', 'Noise is beautiful!'];
-const OUCH = ['Ugh! A strong correlation!', 'Too… well… fitted…', 'Not the least squares!', 'My scatter! Nooo!', 'Curse your residuals!'];
+const OUCH = ['Ugh! A strong correlation!', 'Too… well… fitted…', 'Not the line of best fit!', 'My scatter! Nooo!', 'Curse your gradient!'];
 function countSay(s, t = 2.2) { S.count.say = s; S.count.sayT = t; }
 function hitCount(dmg, fromX, fromY) {
   S.hp = Math.max(0, S.hp - dmg); S.count.hurt = 0.6; S.count.wob = 1;
@@ -272,16 +272,16 @@ function titleScreen() {
   S.mode = 'title'; L = LEVELS[0]; S.pts = genPoints(L, 16); S.fit = fitOf(S.pts);
   S.line.yL = lineYfromFit(XL()); S.line.yR = lineYfromFit(XR());
   let best = 0; try { best = +localStorage.getItem('slopeshift-best') || 0; } catch (e) {}
-  setBar('IB Computer Science · A4 Machine learning · Linear regression');
+  setBar('IB Math: Applications &amp; Interpretation · Statistics · Linear regression');
   showOverlay(
-    '<p class="tagline">An IB CS regression game</p><h1>SLOPE SHIFT</h1>' +
-    '<p><strong>You are the line of best fit.</strong> Count Scatter is flinging outliers to wreck everyone’s data. Hug the trend, blast him with your R², and answer his challenges using the line itself.</p>' +
+    '<p class="tagline">An IB Math AI regression game</p><h1>SLOPE SHIFT</h1>' +
+    '<p><strong>You are the line of best fit.</strong> Count Scatter is flinging outliers to wreck everyone’s data. Hug the trend, blast him with your fit, and answer his challenges using the line itself.</p>' +
     '<div class="keys">' +
     '<kbd>↑ ↓ / W S</kbd><span>shift the line up and down</span>' +
     '<kbd>← → / A D</kbd><span>tilt the line (change the slope)</span>' +
     '<kbd>Drag</kbd><span>grab either end of the line (mouse or finger)</span>' +
     '<kbd>Click</kbd><span>pop red outlier meteors before they land</span>' +
-    '<kbd>Space</kbd><span>fire your R² blast when it’s charged</span>' +
+    '<kbd>Space</kbd><span>fire your fit blast when it’s charged</span>' +
     '</div>' + (best ? '<p>Your best score: <strong>' + best + '</strong></p>' : ''),
     [{ label: 'START ▸', fn: () => { resetGame(); levelIntro(); } }]);
   S.enterFn = () => { resetGame(); levelIntro(); };
@@ -299,7 +299,7 @@ function levelIntro() {
     : S.level === 4 ? '<p><strong>Boss level.</strong> More meteors, harder shoves. Finish him!</p>' : '';
   setBar('<b>Level ' + (S.level + 1) + ' of 5</b> · ' + esc(L.xName) + ' vs ' + esc(L.yName));
   showOverlay('<p class="tagline">Level ' + (S.level + 1) + ' of 5</p><h2>' + esc(L.name) + '</h2><p>' + esc(L.story) + '</p>' +
-    '<p><strong>Phase 1:</strong> ride the trend as the data lands. The closer you fit, the faster your R² blast charges.</p>' +
+    '<p><strong>Phase 1:</strong> ride the trend as the data lands. The closer you fit, the faster your fit blast charges.</p>' +
     '<p><strong>Phase 2:</strong> three of Count Scatter’s challenges.</p>' + extra,
     [{ label: 'GO ▸', fn: startFeed }]);
   S.enterFn = startFeed;
@@ -315,7 +315,7 @@ function startFeed() {
 function feedBar() {
   const f = S.feed, ready = f.charge >= 1;
   setBar('<b>Ride the trend!</b> Keep the line close to the data. Pop the <span class="no">red meteors</span>. ' +
-    (ready ? '<span class="ok">R² blast ready: press Space!</span>' : 'Fit well to charge your R² blast.'),
+    (ready ? '<span class="ok">Fit blast ready: press Space!</span>' : 'Fit well to charge your fit blast.'),
     ready ? [{ label: 'BLAST ▸', cls: 'gold', fn: fireBlast }] : []);
   f.barReady = ready;
 }
@@ -334,9 +334,9 @@ function endFeed() {
   const bonus = Math.max(0, Math.round(300 * (1 - off / 0.15)));
   if (bonus > 0) addScore(bonus, P.x + P.w / 2, P.y + 40);
   S.reveal = { myR2, bestR2, bonus, t: 0 };
-  setBar('<b>Data’s in!</b> Your line: <span class="eq">' + eqStr(lineM(), lineB()) + '</span> (R² = ' + fmt(Math.max(0, myR2), 2) + '). ' +
-    'The <span style="color:#f4c84a;font-weight:700">gold dashed line</span> is the least-squares line: <span class="eq">' + eqStr(fit.m, fit.b) + '</span> (R² = ' + fmt(bestR2, 2) + '). ' +
-    'It makes the sum of the squared residuals as small as possible, so no line can beat its R². Fit bonus: <b>+' + bonus + '</b>',
+  setBar('<b>Data’s in!</b> Your line: <span class="eq">' + eqStr(lineM(), lineB()) + '</span>. ' +
+    'The <span style="color:#f4c84a;font-weight:700">gold dashed line</span> is the regression line of y on x (what your GDC gives you): <span class="eq">' + eqStr(fit.m, fit.b) + '</span>, with Pearson’s r = ' + fmt(fit.r, 2) + '. ' +
+    'It passes through the mean point (x̄, ȳ) = (' + fmt(fit.mx, 1) + ', ' + fmt(fit.my) + '), the gold cross. Fit bonus: <b>+' + bonus + '</b>',
     [{ label: 'CHALLENGES ▸', fn: startQuestions }]);
   S.enterFn = startQuestions;
 }
@@ -382,7 +382,7 @@ function endGame() {
     '<div class="big">' + S.score + '</div><p>points' + (newBest ? ' · <strong>new personal best!</strong>' : '') + '</p>' +
     '<p>Challenges correct: <strong>' + S.correct + ' / ' + TOTAL_Q + '</strong></p>' +
     '<p>Mr. O’s regression grade: <strong>' + g + '</strong> / 7</p>' +
-    (won ? '' : '<p>Tip: correct answers and R² blasts both damage the Count. Keep your line tight to charge faster.</p>'),
+    (won ? '' : '<p>Tip: correct answers and fit blasts both damage the Count. Keep your line tight to charge faster.</p>'),
     [{ label: 'PLAY AGAIN ▸', fn: () => { resetGame(); levelIntro(); } }, { label: 'TITLE', cls: 'ghost', fn: titleScreen }]);
   S.enterFn = () => { resetGame(); levelIntro(); };
 }
@@ -424,6 +424,7 @@ function cardQuestion(build) {
     begin() { build(q); }, layout() {},
     draw() {
       drawAxes(); if (!q.compact) { drawPoints(S.pts, 0.35); ctx.fillStyle = 'rgba(14,12,26,0.35)'; ctx.fillRect(P.x, P.y, P.w, P.h); } else { drawPoints(S.pts, 1); if (q.showFit) drawFitLine(S.fit, C.gold, true); }
+      if (q.done && q.after) q.after();
       cardRects(q).forEach((r, i) => drawCard(q.cards[i], r, i));
     },
     down(px, py) { const rs = cardRects(q); for (let i = 0; i < rs.length; i++) { const r = rs[i]; if (px >= r.x && px <= r.x + r.w && py >= r.y && py <= r.y + r.h) { chooseCard(q, i); return; } } },
@@ -432,27 +433,29 @@ function cardQuestion(build) {
   return q;
 }
 
+function strengthOf(r) { const a = Math.abs(r); return a >= 0.75 ? 'strong' : a >= 0.5 ? 'moderate' : a >= 0.25 ? 'weak' : 'very weak'; }
+const cap = t => t.charAt(0).toUpperCase() + t.slice(1);
 function makeQuestion(type) {
   const fit = S.fit, mR = num(fit.m), bR = num(fit.b), EQ = '<span class="eq">' + eqStr(fit.m, fit.b) + '</span>';
   const yT = L.yThing;
   switch (type) {
     case 'slope': return cardQuestion(q => {
       const up = mR > 0, mag = fmt(Math.abs(mR));
-      cardsBegin(q, 'The model is ' + EQ + ' (x = ' + esc(L.xName.toLowerCase()) + ', y = ' + esc(L.yName.toLowerCase()) + '). <b>What does the slope ' + fmt(mR) + ' mean?</b>', [
+      cardsBegin(q, 'The model is ' + EQ + ' (x = ' + esc(L.xName.toLowerCase()) + ', y = ' + esc(L.yName.toLowerCase()) + '). <b>What does the gradient ' + fmt(mR) + ' mean?</b>', [
         'For ' + L.xStep + ', the predicted ' + yT + (up ? ' rises' : ' falls') + ' by ' + mag + ' ' + L.yChange,
         'The predicted ' + yT + ' is ' + fmt(mR) + ' ' + L.yU + ' when ' + L.x0Phrase,
         'For ' + L.xStep + ', the predicted ' + yT + (up ? ' falls' : ' rises') + ' by ' + mag + ' ' + L.yChange,
         'About ' + mag + '% of the data points lie exactly on the line'
-      ], 0, 'The slope is the change in the predicted y for each 1-unit increase in x. Here, for ' + esc(L.xStep) + ', the predicted ' + esc(yT) + (up ? ' rises' : ' falls') + ' by ' + mag + ' ' + esc(L.yChange) + '.', false);
+      ], 0, 'The gradient is the change in the predicted y for each 1-unit increase in x. Here, for ' + esc(L.xStep) + ', the predicted ' + esc(yT) + (up ? ' rises' : ' falls') + ' by ' + mag + ' ' + esc(L.yChange) + '.', false);
     });
     case 'intercept': return cardQuestion(q => {
       const minX = Math.min.apply(null, S.pts.map(p => p.x)), outside = minX > 0.05 * xr();
-      cardsBegin(q, 'The model is ' + EQ + '. <b>What does ' + fmt(bR) + ' represent?</b>', [
+      cardsBegin(q, 'The model is ' + EQ + '. <b>What does the y-intercept ' + fmt(bR) + ' represent?</b>', [
         'The predicted ' + yT + ' when ' + L.x0Phrase,
         'How much the predicted ' + yT + ' changes for ' + L.xStep,
         'The largest ' + yT + ' in the data set',
-        'The correlation coefficient r for this model'
-      ], 0, 'The intercept is the predicted y when x = 0, so ' + fmt(bR) + ' is the predicted ' + esc(yT) + ' when ' + esc(L.x0Phrase) + '.' +
+        'Pearson’s correlation coefficient r for this data'
+      ], 0, 'The y-intercept is the predicted y when x = 0, so ' + fmt(bR) + ' is the predicted ' + esc(yT) + ' when ' + esc(L.x0Phrase) + '.' +
         (outside ? ' Careful: the data starts at x = ' + fmt(L.dx[0], 1) + ', so x = 0 is outside the data and this value is an extrapolation.' : ''), false);
     });
     case 'rpick': return cardQuestion(q => {
@@ -461,70 +464,58 @@ function makeQuestion(type) {
       const opts = [rc];
       for (const c of cand) { if (opts.length >= 4) break; if (opts.every(o => Math.abs(o - c) >= 0.2) && Math.abs(c) <= 1) opts.push(c); }
       while (opts.length < 4) { const c = num(rand(-1, 1), 2); if (opts.every(o => Math.abs(o - c) >= 0.2)) opts.push(c); }
-      const strength = Math.abs(rc) >= 0.8 ? 'strong' : Math.abs(rc) >= 0.5 ? 'moderate' : 'weak';
-      cardsBegin(q, '<b>Which value of r (the correlation coefficient) best matches this scatter plot?</b>', opts.map(o => 'r = ' + fmt(o, 2)), 0,
-        'r = ' + fmt(rc, 2) + '. r runs from −1 to 1: the sign shows the direction (' + (rc < 0 ? 'negative: as x goes up, y goes down' : 'positive: as x goes up, y goes up') + ') and the size shows the strength. This is a ' + strength + ' ' + (rc < 0 ? 'negative' : 'positive') + ' linear relationship.', true);
+      const strength = strengthOf(rc);
+      cardsBegin(q, '<b>Which value of Pearson’s correlation coefficient r best matches this scatter plot?</b>', opts.map(o => 'r = ' + fmt(o, 2)), 0,
+        'r = ' + fmt(rc, 2) + '. r runs from −1 to 1: the sign shows the direction (' + (rc < 0 ? 'negative: as x goes up, y goes down' : 'positive: as x goes up, y goes up') + ') and the size shows the strength. This is a ' + strength + ' ' + (rc < 0 ? 'negative' : 'positive') + ' linear correlation.', true);
     });
-    case 'r2fromr': return cardQuestion(q => {
-      const rc = num(fit.r, 2), r2 = num(rc * rc, 2);
-      const cand = [rc, num(-r2, 2), num(1 - r2, 2), num(Math.abs(rc) / 2, 2), num(Math.sqrt(Math.abs(rc)), 2)];
-      const opts = [r2];
-      for (const c of cand) { if (opts.length >= 4) break; if (opts.every(o => Math.abs(o - c) >= 0.04)) opts.push(c); }
-      while (opts.length < 4) { const c = num(rand(0, 1), 2); if (opts.every(o => Math.abs(o - c) >= 0.04)) opts.push(c); }
-      cardsBegin(q, 'This model has r = ' + fmt(rc, 2) + '. <b>What is R², the coefficient of determination?</b>', opts.map(o => 'R² = ' + fmt(o, 2)), 0,
-        'For simple linear regression, R² = r². (' + fmt(rc, 2) + ')² = ' + fmt(r2, 2) + '. Squaring removes the sign, so R² is never negative. It means about ' + Math.round(r2 * 100) + '% of the variation in ' + esc(yT) + ' is explained by the model.', true);
+    case 'rinterpret': return cardQuestion(q => {
+      const rc = num(fit.r, 2), str = strengthOf(rc), wrongStr = Math.abs(rc) >= 0.5 ? 'weak' : 'strong';
+      const pos = rc > 0, dir = pos ? 'positive' : 'negative', odir = pos ? 'negative' : 'positive', xl = L.xName.toLowerCase();
+      const trend = up => 'as ' + xl + ' increases, ' + yT + ' tends to ' + (up ? 'increase' : 'decrease');
+      cardsBegin(q, 'For this data, Pearson’s r = ' + fmt(rc, 2) + '. <b>Which statement best describes the correlation?</b>', [
+        cap(str) + ' ' + dir + ' linear correlation: ' + trend(pos),
+        cap(str) + ' ' + odir + ' linear correlation: ' + trend(!pos),
+        cap(wrongStr) + ' ' + dir + ' linear correlation: ' + trend(pos),
+        'Increasing ' + xl + ' causes ' + yT + ' to ' + (pos ? 'increase' : 'decrease')
+      ], 0, 'The sign of r gives the direction (' + dir + ') and its size gives the strength: |r| = ' + fmt(Math.abs(rc), 2) + ' is ' + str + '. Correlation describes a pattern in the data. It doesn’t prove that ' + esc(xl) + ' causes the change.', false);
     });
-    case 'r2meaning': return cardQuestion(q => {
-      const r2 = num(fit.r2, 2), pct = Math.round(r2 * 100);
-      q.showFit = false;
-      cardsBegin(q, 'The least-squares model for this data has R² = ' + fmt(r2, 2) + '. <b>What does that tell you?</b>', [
-        'About ' + pct + '% of the variation in ' + yT + ' is explained by the model',
-        pct + '% of the data points lie exactly on the line',
-        'The slope of the line is ' + fmt(r2, 2),
-        'The model’s predictions are exactly right ' + pct + '% of the time'
-      ], 0, 'R² (the coefficient of determination) is the proportion of the variation in y that the model explains. R² = ' + fmt(r2, 2) + ' means about ' + pct + '% of the variation in ' + esc(yT) + ' is explained by ' + esc(L.xName.toLowerCase()) + '. The closer to 1, the better the fit.', false);
+    case 'meanpoint': return cardQuestion(q => {
+      const X = fmt(fit.mx, 1), Y = fmt(fit.my);
+      q.showFit = true; q.after = () => drawMeanPoint(fit.mx, fit.my);
+      cardsBegin(q, 'For this data, x̄ = ' + X + ' and ȳ = ' + Y + '. <b>The regression line of y on x always passes through which point?</b>',
+        ['(' + X + ', ' + Y + ')', '(0, 0)', '(0, ' + Y + ')', '(' + X + ', 0)'], 0,
+        'The regression line always passes through the mean point (x̄, ȳ) = (' + X + ', ' + Y + '), marked with the gold cross. That’s also why a line of best fit drawn by eye should go through it.', true);
     });
     case 'extrapolation': return cardQuestion(q => {
       const a = L.dx[0], b = L.dx[1], d = decimalsFor(b) === 2 ? 1 : 0;
       const inside = [num(lerp(a, b, 0.2), d), num(lerp(a, b, 0.55), d), num(lerp(a, b, 0.85), d)];
       const out = num(b + 2.5 * (b - a), 0);
-      cardsBegin(q, 'This model was trained on data where ' + esc(L.xName.toLowerCase()) + ' ran from about ' + fmt(a, 1) + ' to ' + fmt(b, 1) + ' ' + esc(L.xU) + '. <b>Which prediction should you trust LEAST?</b>',
+      cardsBegin(q, 'This regression line was made from data where ' + esc(L.xName.toLowerCase()) + ' ran from about ' + fmt(a, 1) + ' to ' + fmt(b, 1) + ' ' + esc(L.xU) + '. <b>Which prediction should you trust LEAST?</b>',
         [out].concat(inside).map(v => 'Predicting ' + yT + ' when ' + L.xName.toLowerCase() + ' = ' + fmt(v) + ' ' + L.xU), 0,
-        'x = ' + fmt(out) + ' is far outside the data the model was trained on. Using a model outside its data range is <b>extrapolation</b>: the pattern might not continue, so the prediction is unreliable. Predictions inside the range (interpolation) are safer.', false);
-    });
-    case 'residualCalc': return cardQuestion(q => {
-      let tries = 0, xD, ya, yp, res;
-      do {
-        const p = pick(S.pts); xD = num(p.x, 1); ya = num(p.y); yp = num(mR * xD + bR); res = num(ya - yp, decimalsFor(yr() / 10)); tries++;
-      } while ((Math.abs(res) < 0.02 * yr() || res === 0) && tries < 40);
-      if (Math.abs(res) < 1e-9) { ya = num(yp + 0.06 * yr()); res = num(ya - yp, decimalsFor(yr() / 10)); }
-      const d = decimalsFor(yr() / 10);
-      const opts = [res, num(-res, d), num(ya + yp, d), num(Math.abs(res) * 2, d)];
-      cardsBegin(q, 'A data point has ' + esc(L.xName.toLowerCase()) + ' = ' + fmt(xD) + ' and an actual ' + esc(yT) + ' of <b>' + fmt(ya) + '</b>. The model predicts <b>ŷ = ' + fmt(yp) + '</b>. <b>What is the residual?</b>',
-        opts.map(o => fmt(o, d) + ' ' + L.yU), 0,
-        'Residual = actual − predicted = ' + fmt(ya) + ' − ' + fmt(yp) + ' = ' + fmt(res, d) + '. ' + (res > 0 ? 'Positive means the point is above the line.' : 'Negative means the point is below the line.'), true);
+        'x = ' + fmt(out) + ' is far outside the data used to make the line. Using a line outside its data range is <b>extrapolation</b>: the pattern might not continue, so the prediction is unreliable. Predictions inside the range (interpolation) are safer.', false);
     });
     case 'static1': return cardQuestion(q => { const s = pick(STATIC.slice(0, 2)); cardsBegin(q, '<b>' + s.q + '</b>', s.o, 0, s.e, false); });
     case 'static2': return cardQuestion(q => { const s = pick(STATIC.slice(2)); cardsBegin(q, '<b>' + s.q + '</b>', s.o, 0, s.e, false); });
     case 'predict': return predictQuestion();
     case 'tune': return tuneQuestion();
     case 'residualClick': return residualClickQuestion();
+    case 'byeye': return byEyeQuestion();
     case 'axes': return axesQuestion();
   }
 }
 const STATIC = [
-  { q: 'When a linear regression model is trained (fitted), what is it trying to make as small as possible?',
-    o: ['The sum of the squared residuals', 'The number of data points', 'The slope of the line', 'The total of all the x-values'],
-    e: 'Least-squares regression picks the slope and intercept that minimise the sum of the squared residuals (the squared vertical gaps between the points and the line).' },
-  { q: 'Why do we keep some data back as a test set instead of training on all of it?',
-    o: ['To check how well the model predicts data it has never seen', 'To make the training slower on purpose', 'Because a model can only learn from half the data', 'To guarantee that R² equals 1'],
-    e: 'The test set is new data for the model. Checking predictions on it shows whether the model generalises, instead of only matching the training data.' },
-  { q: 'Which task is a good fit for linear regression?',
-    o: ['Predicting a house’s price from its size', 'Sorting emails into spam or not spam', 'Labelling a photo as cat or dog', 'Deciding whether a student passes or fails'],
-    e: 'Regression predicts a continuous number (like a price). The other three choose between categories, which is classification.' },
-  { q: 'Why is linear regression called SUPERVISED learning?',
-    o: ['It learns from training data where the correct outputs (labels) are already known', 'A teacher watches the computer while it trains', 'It finds groups in data that has no labels', 'It learns by trial and error from rewards and penalties'],
-    e: 'Supervised learning trains on labelled data: every training example has the input (feature) and the known correct output (label). Finding groups without labels is unsupervised learning; rewards and penalties is reinforcement learning.' }
+  { q: 'A study finds r = 0.91 between ice cream sales and sunburn cases. What can you conclude?',
+    o: ['There is a strong positive linear correlation, but it doesn’t prove one causes the other', 'Eating ice cream causes sunburn', '91% of people who buy ice cream get sunburned', 'The correlation is weak'],
+    e: 'r = 0.91 is a strong positive linear correlation. Correlation doesn’t imply causation: here a third factor (hot, sunny weather) drives both.' },
+  { q: 'A data set has r = 0.12. Should you use its regression line to make predictions?',
+    o: ['No: the correlation is very weak, so predictions would be unreliable', 'Yes: any regression line gives reliable predictions', 'Yes: as long as r is positive, the line works', 'No: you can only predict when r is exactly 1'],
+    e: 'With r = 0.12 the points barely follow a line, so the regression line tells you very little. Only use it for predictions when the correlation is reasonably strong.' },
+  { q: 'You have the regression line of y on x. Which use of it is appropriate?',
+    o: ['Predicting y for an x-value inside the data range', 'Predicting x from a given y-value', 'Predicting y for an x-value far outside the data', 'Proving that x causes y'],
+    e: 'The regression line of y on x is built to predict y from x. Don’t use it backwards to find x, keep predictions inside the data range (interpolation), and remember correlation isn’t causation.' },
+  { q: 'A scatter plot makes a clear U-shape, but r = 0.02. What does that tell you?',
+    o: ['There’s no linear correlation, but there can still be a non-linear relationship', 'There is no relationship of any kind between x and y', 'The points all lie on a horizontal line', 'The data must have been entered wrong'],
+    e: 'Pearson’s r only measures LINEAR correlation. A U-shape is a strong relationship that just isn’t a straight line, so r comes out close to 0.' }
 ];
 
 function predictQuestion() {
@@ -598,7 +589,7 @@ function tuneQuestion() {
       if (q.done) [0, q.x2].forEach(x => {
         if (x < L.xmin || x > L.xmax) return; const y = m * x + b; if (y < L.ymin || y > L.ymax) return;
         ctx.save(); ctx.strokeStyle = '#15121f'; ctx.lineWidth = 3; dot(sx(x), sy(y), 9, C.gold); ctx.stroke(); ctx.restore();
-        label('(' + fmt(x) + ', ' + fmt(y) + ')', sx(x) + (x === 0 ? 14 : -14), sy(y) - 14, C.gold, 18, x === 0 ? 'left' : 'right');
+        label('(' + fmt(x) + ', ' + fmt(y, 2) + ')', sx(x) + (x === 0 ? 14 : -14), sy(y) - 14, C.gold, 18, x === 0 ? 'left' : 'right');
       });
     },
     down(px, py) { grabLine(px, py); }, move(px, py) { dragLine(px, py); }, up() { releaseLine(); },
@@ -606,8 +597,34 @@ function tuneQuestion() {
       if (q.done) return;
       const tl = m * XL() + b, tr = m * XR() + b;
       const ok = Math.abs(S.line.yL - tl) <= 0.045 * yr() && Math.abs(S.line.yR - tr) <= 0.045 * yr();
-      answer(ok, 'Target: <span class="eq">' + eqStr(m, b) + '</span>. Yours: <span class="eq">' + eqStr(lineM(), lineB()) + '</span>. Check points: at x = 0, ŷ = <b>' + fmt(b) + '</b> (the intercept, where the line crosses the y-axis); at x = ' + fmt(x2) + ', ŷ = ' + fmt(m) + ' × ' + fmt(x2) + (b < 0 ? ' − ' + fmt(-b) : ' + ' + fmt(b)) + ' = <b>' + fmt(m * x2 + b) + '</b>.' +
+      answer(ok, 'Target: <span class="eq">' + eqStr(m, b) + '</span>. Yours: <span class="eq">' + eqStr(lineM(), lineB()) + '</span>. Check points: at x = 0, ŷ = <b>' + fmt(b) + '</b> (the intercept, where the line crosses the y-axis); at x = ' + fmt(x2) + ', ŷ = ' + fmt(m) + ' × ' + fmt(x2) + (b < 0 ? ' − ' + fmt(-b) : ' + ' + fmt(b)) + ' = <b>' + fmt(m * x2 + b, 2) + '</b>.' +
         (L.xmin < 0 ? ' This graph starts at x = ' + fmt(L.xmin) + ', so the left edge is not the y-axis. At the left edge the line is at ' + fmt(m * L.xmin + b) + '.' : '') + ' The gold dashed line shows the target.');
+    }
+  };
+  return q;
+}
+
+function byEyeQuestion() {
+  const fit = S.fit, mx = fit.mx, my = fit.my;
+  const q = {
+    begin() {
+      const off = (Math.random() < 0.5 ? -1 : 1) * rand(0.2, 0.3) * yr();
+      S.line = { yL: my + off, yR: my + off, vL: 0, vR: 0 };
+      setBar('<b>Draw a line of best fit by eye.</b> The gold cross is the mean point <span class="eq">(x̄, ȳ) = (' + fmt(mx, 1) + ', ' + fmt(my) + ')</span>. Make your line pass through it and follow the trend, then lock it in.',
+        [{ label: 'LOCK IN ▸', fn: () => q.submit() }]);
+      S.enterFn = () => q.submit();
+    },
+    update(dt) { if (!q.done) controlLine(dt); },
+    draw() { drawAxes(); if (q.done) drawFitLine(fit, C.gold, true); drawPlayerLine(false); drawPoints(S.pts); drawMeanPoint(mx, my); },
+    down(px, py) { grabLine(px, py); }, move(px, py) { dragLine(px, py); }, up() { releaseLine(); },
+    submit() {
+      if (q.done) return;
+      const miss = lineY(mx) - my, through = Math.abs(miss) <= 0.04 * yr();
+      const g = lineM(), slopeOk = Math.sign(g) === Math.sign(fit.m) && Math.abs(g - fit.m) <= 0.3 * Math.abs(fit.m);
+      answer(through && slopeOk,
+        (through ? 'Your line goes through the mean point. ' : 'Your line misses the mean point by ' + fmt(Math.abs(miss)) + ' ' + esc(L.yU) + '. ') +
+        (slopeOk ? 'Your gradient (' + fmt(g) + ') follows the trend. ' : 'Your gradient is ' + fmt(g) + ', but the trend’s gradient is about ' + fmt(fit.m) + '. ') +
+        'A good line of best fit by eye passes through (x̄, ȳ) and has roughly as many points above it as below. The gold dashed line is the regression line of y on x: <span class="eq">' + eqStr(fit.m, fit.b) + '</span>.');
     }
   };
   return q;
@@ -626,7 +643,7 @@ function residualClickQuestion() {
   const q = {
     pts, fit, idx, chosen: -1,
     begin() {
-      setBar('Here’s a new batch with its least-squares line. <b>Click the data point with the largest residual</b> (the biggest vertical gap from the line).');
+      setBar('Here’s a new batch with its regression line. <b>Click the point that fits the trend worst</b> (the one furthest above or below the line).');
     },
     draw() {
       drawAxes(); drawFitLine(fit, C.gold, false);
@@ -638,7 +655,7 @@ function residualClickQuestion() {
       pts.forEach((p, i) => { const d = Math.hypot(sx(p.x) - px, sy(p.y) - py); if (d < bd) { bd = d; best = i; } });
       if (best < 0) return; q.chosen = best;
       const p = pts[idx], res = p.y - (fit.m * p.x + fit.b);
-      answer(best === idx, 'A residual is actual − predicted: the vertical distance from a point to the line. The biggest one here is ' + fmt(res) + ' ' + esc(L.yU) + (res > 0 ? ' (above the line)' : ' (below the line)') + '. Points with huge residuals might be outliers worth checking.');
+      answer(best === idx, 'That point is ' + fmt(Math.abs(res)) + ' ' + esc(L.yU) + (res > 0 ? ' above' : ' below') + ' the line, further than any other point. Points that don’t fit the pattern like this are possible outliers, worth checking before you trust the model.');
     }
   };
   return q;
@@ -647,7 +664,7 @@ function residualClickQuestion() {
 function axesQuestion() {
   const chips = shuffle([
     { id: 'fx', t: L.xName }, { id: 'ly', t: L.yName },
-    { id: 'tf', t: 'Feature (independent variable)' }, { id: 'tl', t: 'Label (dependent variable)' }
+    { id: 'tf', t: 'Independent variable' }, { id: 'tl', t: 'Dependent variable' }
   ]);
   const q = {
     sel: null, slots: { x: [], y: [] },
@@ -675,7 +692,7 @@ function axesQuestion() {
       if (q.done) return;
       if (q.slots.x.length + q.slots.y.length < 4) { q.warn = true; q.render(); return; }
       const ok = q.slots.x.includes('fx') && q.slots.x.includes('tf') && q.slots.y.includes('ly') && q.slots.y.includes('tl');
-      answer(ok, 'The <b>feature</b> (independent variable, the input) goes on the x-axis: ' + esc(L.xName.toLowerCase()) + '. The <b>label</b> (dependent variable, the output we predict) goes on the y-axis: ' + esc(L.yName.toLowerCase()) + '.');
+      answer(ok, 'The <b>independent variable</b> (' + esc(L.xName.toLowerCase()) + ') goes on the x-axis. The <b>dependent variable</b> (' + esc(L.yName.toLowerCase()) + '), the one we want to predict, goes on the y-axis. That’s the setup for the regression line of y on x.');
     }
   };
   return q;
@@ -895,7 +912,7 @@ function drawHUD() {
   }
   if (S.mode === 'feed') {
     const f = S.feed, bx = 330, by = 30, bw = 250;
-    label('R² ' + fmt(Math.max(0, f.r2), 2), bx, by + 14, C.text, 13, 'left', 'Press Start 2P', 400);
+    label('FIT ' + Math.round(clamp(f.r2, 0, 1) * 100) + '%', bx, by + 14, C.text, 13, 'left', 'Press Start 2P', 400);
     ctx.fillStyle = '#2a2549'; ctx.fillRect(bx, by + 24, bw, 12); ctx.fillStyle = f.r2 >= 0.6 ? C.good : C.bad; ctx.fillRect(bx, by + 24, bw * clamp(f.r2, 0, 1), 12);
     label('BLAST', bx, by + 64, C.text, 11, 'left', 'Press Start 2P', 400);
     ctx.fillStyle = '#2a2549'; ctx.fillRect(bx + 70, by + 52, bw - 70, 12); ctx.fillStyle = C.gold; ctx.fillRect(bx + 70, by + 52, (bw - 70) * f.charge, 12);
@@ -925,8 +942,16 @@ function drawFeed() {
 function drawReveal() {
   drawAxes();
   clipPlot(() => { for (const p of S.pts) residualBar(p, S.fit, 'rgba(244,200,74,.4)', false); });
-  drawPlayerLine(true); drawFitLine(S.fit, C.gold, true); drawPoints(S.pts);
-  label('Least squares: ' + eqStr(S.fit.m, S.fit.b), P.x + 14, P.y + 56, C.gold, 20, 'left');
+  drawPlayerLine(true); drawFitLine(S.fit, C.gold, true); drawPoints(S.pts); drawMeanPoint(S.fit.mx, S.fit.my);
+  label('Regression line: ' + eqStr(S.fit.m, S.fit.b), P.x + 14, P.y + 56, C.gold, 20, 'left');
+}
+function drawMeanPoint(mx, my, withLabel = true) {
+  const X = sx(mx), Y = sy(my);
+  ctx.save(); ctx.strokeStyle = '#15121f'; ctx.lineWidth = 7; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(X - 12, Y - 12); ctx.lineTo(X + 12, Y + 12); ctx.moveTo(X + 12, Y - 12); ctx.lineTo(X - 12, Y + 12); ctx.stroke();
+  ctx.strokeStyle = C.gold; ctx.lineWidth = 4; ctx.stroke();
+  ctx.beginPath(); ctx.arc(X, Y, 17, 0, Math.PI * 2); ctx.lineWidth = 2; ctx.stroke(); ctx.restore();
+  if (withLabel) label('(x̄, ȳ)', X + 22, Y - 16, C.gold, 17, 'left');
 }
 function drawFx(dt) {
   for (const b of S.beams) {
