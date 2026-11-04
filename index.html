@@ -579,11 +579,14 @@ function tuneQuestion() {
     tries++;
   } while (tries < 50 && !(m * XL() + b > L.ymin + 0.05 * yr() && m * XL() + b < L.ymax - 0.05 * yr() && m * XR() + b > L.ymin + 0.05 * yr() && m * XR() + b < L.ymax - 0.05 * yr()));
   m = num(m); b = num(b);
+  const xStepNice = niceStep(xr(), 4);
+  let x2 = Math.floor((L.xmax - 0.1 * xr()) / xStepNice) * xStepNice; if (x2 <= 0) x2 = xStepNice;
   const q = {
-    tm: m, tb: b,
+    tm: m, tb: b, x2,
     begin() {
       S.line = { yL: (L.ymin + L.ymax) / 2, yR: (L.ymin + L.ymax) / 2, vL: 0, vR: 0 };
-      setBar('Count Scatter jammed your readout! <b>Shape yourself into the line <span class="eq">' + eqStr(m, b) + '</span></b> using the grid. Arrows / WASD or drag the ends, then lock it in. (Hint: find the y-value at two x-values.)',
+      const note = L.xmin < 0 ? ' <b>Heads up:</b> this graph starts at x = ' + fmt(L.xmin) + ', so the y-axis is the bold white line at x = 0, not the left edge.' : '';
+      setBar('Count Scatter jammed your readout! <b>Shape yourself into the line <span class="eq">' + eqStr(m, b) + '</span></b> using the grid. Arrows / WASD or drag the ends, then lock it in. (Hint: work out ŷ at two x-values, like x = 0 and x = ' + fmt(q.x2) + '.)' + note,
         [{ label: 'LOCK IN ▸', fn: () => q.submit() }]);
       S.enterFn = () => q.submit();
     },
@@ -592,13 +595,19 @@ function tuneQuestion() {
       drawAxes(true);
       if (q.done) drawFitLine({ m, b }, C.gold, true);
       drawPlayerLine(false);
+      if (q.done) [0, q.x2].forEach(x => {
+        if (x < L.xmin || x > L.xmax) return; const y = m * x + b; if (y < L.ymin || y > L.ymax) return;
+        ctx.save(); ctx.strokeStyle = '#15121f'; ctx.lineWidth = 3; dot(sx(x), sy(y), 9, C.gold); ctx.stroke(); ctx.restore();
+        label('(' + fmt(x) + ', ' + fmt(y) + ')', sx(x) + (x === 0 ? 14 : -14), sy(y) - 14, C.gold, 18, x === 0 ? 'left' : 'right');
+      });
     },
     down(px, py) { grabLine(px, py); }, move(px, py) { dragLine(px, py); }, up() { releaseLine(); },
     submit() {
       if (q.done) return;
       const tl = m * XL() + b, tr = m * XR() + b;
       const ok = Math.abs(S.line.yL - tl) <= 0.045 * yr() && Math.abs(S.line.yR - tr) <= 0.045 * yr();
-      answer(ok, 'Target: <span class="eq">' + eqStr(m, b) + '</span>. Yours: <span class="eq">' + eqStr(lineM(), lineB()) + '</span>. The slope ' + fmt(m) + ' is the rise per 1 unit of x, and ' + fmt(b) + ' is where the line would cross x = 0. The gold dashed line shows the target.');
+      answer(ok, 'Target: <span class="eq">' + eqStr(m, b) + '</span>. Yours: <span class="eq">' + eqStr(lineM(), lineB()) + '</span>. Check points: at x = 0, ŷ = <b>' + fmt(b) + '</b> (the intercept, where the line crosses the y-axis); at x = ' + fmt(x2) + ', ŷ = ' + fmt(m) + ' × ' + fmt(x2) + (b < 0 ? ' − ' + fmt(-b) : ' + ' + fmt(b)) + ' = <b>' + fmt(m * x2 + b) + '</b>.' +
+        (L.xmin < 0 ? ' This graph starts at x = ' + fmt(L.xmin) + ', so the left edge is not the y-axis. At the left edge the line is at ' + fmt(m * L.xmin + b) + '.' : '') + ' The gold dashed line shows the target.');
     }
   };
   return q;
@@ -769,8 +778,22 @@ function drawAxes(gridLabels = true, hideNames = false) {
   for (let y = Math.ceil(L.ymin / ys) * ys; y <= L.ymax + 1e-9; y += ys) { ctx.moveTo(P.x, sy(y)); ctx.lineTo(P.x + P.w, sy(y)); }
   ctx.stroke();
   // x = 0 axis line if visible
-  if (L.xmin < 0 && L.xmax > 0) { ctx.strokeStyle = 'rgba(255,255,255,.18)'; ctx.beginPath(); ctx.moveTo(sx(0), P.y); ctx.lineTo(sx(0), P.y + P.h); ctx.stroke(); }
   ctx.strokeStyle = C.line; ctx.lineWidth = 2; ctx.strokeRect(P.x, P.y, P.w, P.h);
+  if (L.xmin < 0 && L.xmax > 0) {
+    const X0 = sx(0);
+    ctx.save(); ctx.strokeStyle = 'rgba(241,238,252,.85)'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(X0, P.y + P.h); ctx.lineTo(X0, P.y + 6); ctx.stroke();
+    ctx.fillStyle = 'rgba(241,238,252,.85)'; ctx.beginPath(); ctx.moveTo(X0 - 8, P.y + 14); ctx.lineTo(X0, P.y); ctx.lineTo(X0 + 8, P.y + 14); ctx.fill();
+    if (gridLabels) {
+      ctx.lineWidth = 2;
+      for (let y = Math.ceil(L.ymin / ys) * ys; y <= L.ymax + 1e-9; y += ys) {
+        ctx.beginPath(); ctx.moveTo(X0 - 7, sy(y)); ctx.lineTo(X0 + 7, sy(y)); ctx.stroke();
+        if (y > L.ymin) label(fmt(y, ys < 1 ? 1 : 0), X0 - 10, sy(y) - 6, 'rgba(241,238,252,.7)', 13, 'right', 'Space Grotesk', 500);
+      }
+    }
+    ctx.restore();
+    label('y-axis (x = 0)', X0 + 12, P.y + 20, C.text, 14, 'left');
+  }
   if (gridLabels) {
     const dx = decimalsFor(xs) === 2 && xs < 1 ? 1 : 0, dy = ys < 1 ? 1 : 0;
     for (let x = Math.ceil(L.xmin / xs) * xs; x <= L.xmax + 1e-9; x += xs) label(fmt(x, dx), sx(x), P.y + P.h + 22, C.muted, 15, 'center', 'Space Grotesk', 500);
